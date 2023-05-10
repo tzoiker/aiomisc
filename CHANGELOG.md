@@ -9,6 +9,49 @@ the moment when we feel the need to start it. You can always
 view the commit history if you couldn't find something
 in this document.
 
+17.0.x
+------
+
+In this release, the aiomisc_pytest module has been mostly removed, and has
+been separated into a separate package. This is the main, breaking change
+of this release.
+
+* Dynamic running of services see
+  [also](https://aiomisc.readthedocs.io/en/latest/entrypoint.html#dynamic-running-of-services)
+* New `aiomisc.entrypoint.get_current()` function returns current
+  running entrypoint
+* Removed `aiomisc_pytest` because is now a separate package
+  [aiomisc-pytest](https://pypi.org/project/aiomisc-pytest/)
+* `entrypoint` class is final now.
+* Instance ordering not guaranteed in `Entrypoint.services` method
+* The main function in `aiomisc_worker/forking.py` returns 0 when keyboard
+  interrupt received
+
+16.3.x
+------
+
+* Migrate to poetry #154
+  * Use `poem-plugins` for creating `aiomisc/version.py` file and bump version
+    when publishing.
+  * some non-public imports might be broken, mainly typing, and the
+   `aiomisc.io` module
+  * Buffered log handler in `aiomisc.log`, is now correct finalize when an
+    entrypoint stops. This is useful if the program uses multiple entrypoints
+    while the program is running, and especially in tests.
+  * Lots of changes in `aiomisc.io` module:
+    * Support stream compression for opening files with:
+      * `GZIP` - compressed files
+      * `LZMA` - compressed files
+      * `BZ2` - compressed files
+  * Added `aiohttp_asgi` objects to `__all__` in `aiomisc.service.asgi`
+  * `aiomisc.Service` subclasses is now can be serialized with `pickle`
+  * Improves typing for:
+    * `aiomisc.io`
+    * `aiomisc.pool`
+    * `aiomisc.service.udp`
+    * `aiomisc.worker_pool.WorkerPool`
+* Improve documentation
+
 16.2.x
 ------
 

@@ -38,7 +38,6 @@ class ProcessService(Service):
     _process_start_event: synchronize.Event
     _process_stop_event: synchronize.Event
     _lock: Lock
-    _instance_params: Dict[str, Any]
 
     def get_process_kwargs(self) -> Dict[str, Any]:
         return {}
@@ -156,7 +155,7 @@ class RespawningProcessService(ProcessService, ABC):
         )
 
     async def stop(self, exception: Optional[Exception] = None) -> Any:
-        await self._supervisor.stop()
+        await self._supervisor.stop(return_exceptions=True)
         await super().stop(exception)
 
 

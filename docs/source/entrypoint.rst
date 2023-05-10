@@ -25,6 +25,7 @@ Complete example:
     import asyncio
     import aiomisc
     import logging
+    import signal
 
     async def main():
         await asyncio.sleep(1)
@@ -33,12 +34,14 @@ Complete example:
     with aiomisc.entrypoint(
         pool_size=2,
         log_level='info',
-        log_format='color',                         # default when "rich" absent
-        log_buffer_size=1024,                       # default
-        log_flush_interval=0.2,                     # default
-        log_config=True,                            # default
-        policy=asyncio.DefaultEventLoopPolicy(),    # default
-        debug=False,                                # default
+        log_format='color',                            # default when "rich" absent
+        log_buffer_size=1024,                          # default
+        log_flush_interval=0.2,                        # default
+        log_config=True,                               # default
+        policy=asyncio.DefaultEventLoopPolicy(),       # default
+        debug=False,                                   # default
+        catch_signals=(signal.SIGINT, signal.SIGTERM), # default
+        shutdown_timeout=60,                           # default
     ) as loop:
         loop.run_until_complete(main())
 
@@ -73,18 +76,64 @@ Running entrypoint from async code
 
     asyncio.run(main())
 
+Dynamic running of services
++++++++++++++++++++++++++++
+
+Sometimes it is not enough to add services to the entrypoint at the start,
+or it is not possible to get the service parameters before the start of
+the event-loop. In this case it is possible to start services after the
+event-loop has started, this feature available from version ``17``.
+
+.. code-block:: python
+
+    import asyncio
+    import aiomisc
+    import logging
+
+    from aiomisc.service.periodic import PeriodicService
+
+    log = logging.getLogger(__name__)
+
+
+    class MyPeriodicService(PeriodicService):
+        async def callback(self):
+            log.info('Running periodic callback')
+
+
+    async def add_services():
+        entrypoint = aiomisc.entrypoint.get_current()
+
+        services = [
+            MyPeriodicService(interval=2, delay=1),
+            MyPeriodicService(interval=2, delay=0),
+        ]
+
+        await entrypoint.start_services(*services)
+        await asyncio.sleep(10)
+        await entrypoint.stop_services(*services)
+
+
+    with aiomisc.entrypoint() as loop:
+        loop.create_task(add_services())
+        loop.run_forever()
+
+
 Configuration from environment
 ++++++++++++++++++++++++++++++
 
 Module support configuration from environment variables:
 
-* `AIOMISC_LOG_LEVEL` - default logging level
-* `AIOMISC_LOG_FORMAT` - default log format
-* `AIOMISC_LOG_CONFIG` - should logging be configured
-* `AIOMISC_LOG_FLUSH` - interval between logs flushing from buffer
-* `AIOMISC_LOG_BUFFERING` - should logging be buffered
-* `AIOMISC_LOG_BUFFER_SIZE` - maximum log buffer size
-* `AIOMISC_POOL_SIZE` - thread pool size
+* ``AIOMISC_LOG_LEVEL`` - default logging level
+* ``AIOMISC_LOG_FORMAT`` - default log format
+* ``AIOMISC_LOG_DATE_FORMAT`` - default logging date format
+* ``AIOMISC_LOG_CONFIG`` - should logging be configured
+* ``AIOMISC_LOG_FLUSH`` - interval between logs flushing from buffer
+* ``AIOMISC_LOG_BUFFERING`` - should logging be buffered
+* ``AIOMISC_LOG_BUFFER_SIZE`` - maximum log buffer size
+* ``AIOMISC_POOL_SIZE`` - thread pool size
+* ``AIOMISC_USE_UVLOOP`` - should use uvloop when it available, ``0`` to disable
+* ``AIOMISC_SHUTDOWN_TIMEOUT`` - If, after receiving the signal, the program
+  does not terminate within this timeout, a force-exit occurs.
 
 
 ``run()`` shortcut
@@ -112,8 +161,8 @@ but handle ``Service``'s and other ``entrypoint``'s kwargs.
 Logging configuration
 =====================
 
-``entrypoint`` accepts a specific set of formats in which logs will be
-written to stderr.
+``entrypoint`` accepts ``log_format`` argument with a specific set of formats,
+in which logs will be written to stderr:
 
 * ``stream`` - Python's default logging handler
 * ``color`` - logging with `colorlog` module
@@ -122,13 +171,16 @@ written to stderr.
 * ``plain`` - just log messages, without date or level info
 * ``journald`` - available only when `logging-journald` module
   has been installed.
-* ``rich``/``rich_tb` - available only when `rich` module has been installed.
+* ``rich``/``rich_tb`` - available only when `rich` module has been installed.
   ``rich_tb`` it's the same as ``rich`` but with fully expanded tracebacks.
 
+Additionally, you can specify log level using ``log_level`` argument and date
+format using ``log_date_format`` parameters.
+
 An ``entrypoint`` will call ``aiomisc.log.basic_config`` function implicitly
-using passed ``log_level=`` and ``log_format=`` parameters.
-Alternatively you can call ``aiomisc.log.basic_config`` function manually
-passing it already created eventloop.
+using passed ``log_*`` parameters. Alternatively you can call
+``aiomisc.log.basic_config`` function manually passing it already created
+eventloop.
 
 However, you can configure logging earlier using ``aiomisc_log.basic_config``,
 but you will lose log buffering and flushing in a separate thread.

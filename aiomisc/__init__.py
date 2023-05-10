@@ -4,7 +4,7 @@ from .backoff import asyncbackoff, asyncretry
 from .circuit_breaker import CircuitBreaker, CircuitBroken, cutout
 from .context import Context, get_context
 from .counters import Statistic, get_statistics
-from .entrypoint import entrypoint, run
+from .entrypoint import Entrypoint, entrypoint, run
 from .iterator_wrapper import IteratorWrapper
 from .periodic import PeriodicCallback
 from .plugins import plugins
@@ -25,6 +25,7 @@ from .utils import (
     SelectResult, awaitable, bind_socket, cancel_tasks, chunk_list,
     new_event_loop, select, shield,
 )
+from .version import __version__, version_info
 from .worker_pool import WorkerPool
 
 
@@ -32,6 +33,7 @@ __all__ = (
     "CircuitBreaker",
     "CircuitBroken",
     "Context",
+    "Entrypoint",
     "IteratorWrapper",
     "IteratorWrapperSeparate",
     "PeriodicCallback",
@@ -47,6 +49,7 @@ __all__ = (
     "StrategyStop",
     "ThreadPoolExecutor",
     "WorkerPool",
+    "__version__",
     "aggregate",
     "aggregate_async",
     "asyncbackoff",
@@ -75,5 +78,6 @@ __all__ = (
     "threaded_iterable_separate",
     "threaded_separate",
     "timeout",
+    "version_info",
     "wait_coroutine",
 )

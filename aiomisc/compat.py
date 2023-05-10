@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import os
 import socket
-from contextvars import ContextVar
 from typing import Optional
+
+from ._context_vars import EVENT_LOOP
 
 
 log = logging.getLogger(__name__)
@@ -14,6 +16,12 @@ except ImportError:
 
     def time_ns() -> int:
         return int(time() * 1000000000)
+
+
+try:
+    from typing import final
+except ImportError:
+    from typing_extensions import final  # type: ignore
 
 
 class EventLoopMixin:
@@ -28,9 +36,16 @@ class EventLoopMixin:
         return self._loop   # type: ignore
 
 
+event_loop_policy: asyncio.AbstractEventLoopPolicy
 try:
-    import uvloop  # type: ignore
-    event_loop_policy = uvloop.EventLoopPolicy()
+    import uvloop
+    if (
+        os.getenv("AIOMISC_USE_UVLOOP", "1").lower() in
+        ("yes", "1", "enabled", "enable", "on", "true")
+    ):
+        event_loop_policy = uvloop.EventLoopPolicy()
+    else:
+        event_loop_policy = asyncio.DefaultEventLoopPolicy()
 except ImportError:
     event_loop_policy = asyncio.DefaultEventLoopPolicy()
 
@@ -56,24 +71,14 @@ else:
             "underlying library. Skipping.",
         )
 
-
-EVENT_LOOP: ContextVar = ContextVar("EVENT_LOOP")
-
-
-def get_current_loop() -> asyncio.AbstractEventLoop:
-    loop: Optional[asyncio.AbstractEventLoop] = EVENT_LOOP.get(None)
-    if loop is None:
-        raise RuntimeError("no current event loop is set")
-    return loop
-
-
-def set_current_loop(loop: asyncio.AbstractEventLoop) -> None:
-    EVENT_LOOP.set(loop)
-
+# 16.x.x reverse compatibility
+set_current_loop = EVENT_LOOP.set
+get_current_loop = EVENT_LOOP.get
 
 __all__ = (
     "EventLoopMixin",
     "event_loop_policy",
+    "final",
     "get_current_loop",
     "set_current_loop",
     "sock_set_nodelay",

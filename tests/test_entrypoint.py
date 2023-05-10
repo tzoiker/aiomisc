@@ -1,24 +1,27 @@
 import asyncio
 import os
+import pickle
 import socket
 from asyncio import Event, get_event_loop
 from asyncio.tasks import Task
 from contextlib import ExitStack, suppress
 from tempfile import mktemp
-from typing import Any
+from typing import Any, Optional, Set, Tuple
+from unittest import mock
 
 import aiohttp.web
 import fastapi
 import pytest
 
 import aiomisc
-from aiomisc import Signal
-from aiomisc.entrypoint import Entrypoint
+from aiomisc.entrypoint import Entrypoint, entrypoint
 from aiomisc.service import TCPServer, TLSServer, UDPServer
 from aiomisc.service.aiohttp import AIOHTTPService
 from aiomisc.service.asgi import ASGIApplicationType, ASGIHTTPService
 from aiomisc.service.tcp import RobustTCPClient, TCPClient
 from aiomisc.service.tls import RobustTLSClient, TLSClient
+from aiomisc_log import LogFormat
+from aiomisc_log.enum import DateFormat, LogLevel
 from tests import unix_only
 
 
@@ -26,7 +29,7 @@ try:
     import uvloop
     uvloop_loop_type = uvloop.Loop
 except ImportError:
-    uvloop_loop_type = None
+    uvloop_loop_type = None     # type: ignore
 
 
 pytestmark = pytest.mark.catch_loop_exceptions
@@ -75,12 +78,8 @@ def unix_socket_tcp():
 
 def test_service_class():
     with pytest.raises(TypeError):
-        services = (
-            aiomisc.Service(running=False, stopped=False),
-            aiomisc.Service(running=False, stopped=False),
-        )
-
-        with aiomisc.entrypoint(*services):
+        service = aiomisc.Service(running=False, stopped=False)  # type: ignore
+        with aiomisc.entrypoint(service):
             pass
 
 
@@ -90,31 +89,34 @@ def test_simple():
             self.running = True
 
     class DummyService(StartingService):
-        async def stop(self, err: Exception = None):
+        async def stop(self, err: Optional[Exception] = None):
             self.stopped = True
 
-    services = (
+    services: Tuple[StartingService, ...]
+    dummy_services: Tuple[DummyService, ...]
+
+    dummy_services = (
         DummyService(running=False, stopped=False),
         DummyService(running=False, stopped=False),
     )
 
-    with aiomisc.entrypoint(*services):
+    with aiomisc.entrypoint(*dummy_services):
         pass
 
-    for svc in services:
+    for svc in dummy_services:
         assert svc.running
         assert svc.stopped
 
-    services = (
+    dummy_services = (
         DummyService(running=False, stopped=False),
         DummyService(running=False, stopped=False),
     )
 
     with pytest.raises(RuntimeError):
-        with aiomisc.entrypoint(*services):
+        with aiomisc.entrypoint(*dummy_services):
             raise RuntimeError
 
-    for svc in services:
+    for svc in dummy_services:
         assert svc.running
         assert svc.stopped
 
@@ -127,13 +129,13 @@ def test_simple():
         with aiomisc.entrypoint(*services):
             raise RuntimeError
 
-    for svc in services:
-        assert svc.running
+    for starting_svc in services:
+        assert starting_svc.running
 
 
-def test_wrong_sublclass():
+def test_wrong_subclass():
     with pytest.raises(TypeError):
-        class _(aiomisc.Service):
+        class NoAsyncStartService(aiomisc.Service):
             def start(self):
                 return True
 
@@ -142,11 +144,11 @@ def test_wrong_sublclass():
             return
 
     with pytest.raises(TypeError):
-        class _(MyService):
+        class NoAsyncStopServiceSubclass(MyService):
             def stop(self):
                 return True
 
-    class _(MyService):
+    class AsyncStopServiceSubclass(MyService):
         async def stop(self):
             return True
 
@@ -165,6 +167,8 @@ def test_required_kwargs():
 
 
 def test_tcp_server():
+    event = asyncio.Event()
+
     class TestService(TCPServer):
         DATA = []
 
@@ -174,6 +178,7 @@ def test_tcp_server():
         ):
             self.DATA.append(await reader.readline())
             writer.close()
+            event.set()
 
     service = TestService("127.0.0.1", 0)
 
@@ -186,12 +191,15 @@ def test_tcp_server():
         loop.run_until_complete(
             asyncio.wait_for(writer(service.port), timeout=10),
         )
+        loop.run_until_complete(event.wait())
 
     assert TestService.DATA
     assert TestService.DATA == [b"hello server\n"]
 
 
 def test_tcp_client(aiomisc_socket_factory, localhost):
+    event = asyncio.Event()
+
     class TestService(TCPServer):
         DATA = []
 
@@ -200,23 +208,21 @@ def test_tcp_client(aiomisc_socket_factory, localhost):
             writer: asyncio.StreamWriter,
         ):
             self.DATA.append(await reader.readline())
+            event.set()
 
     class TestClient(TCPClient):
-        event: asyncio.Event
-
         async def handle_connection(
             self, reader: asyncio.StreamReader,
             writer: asyncio.StreamWriter,
         ) -> None:
             writer.write(b"hello server\n")
             await writer.drain()
-            self.loop.call_soon(self.event.set)
 
     port, sock = aiomisc_socket_factory()
     event = asyncio.Event()
     services = [
         TestService(sock=sock),
-        TestClient(address=localhost, port=port, event=event),
+        TestClient(address=localhost, port=port),
     ]
 
     async def go():
@@ -226,12 +232,15 @@ def test_tcp_client(aiomisc_socket_factory, localhost):
         loop.run_until_complete(
             asyncio.wait_for(go(), timeout=10),
         )
+        loop.run_until_complete(event.wait())
 
     assert TestService.DATA
     assert TestService.DATA == [b"hello server\n"]
 
 
-async def test_robust_tcp_client(loop, aiomisc_socket_factory, localhost):
+async def test_robust_tcp_client(
+    event_loop, aiomisc_socket_factory, localhost,
+):
     condition = asyncio.Condition()
 
     class TestService(TCPServer):
@@ -287,6 +296,8 @@ async def test_robust_tcp_client(loop, aiomisc_socket_factory, localhost):
 def test_tls_server(
     client_cert_required, certs, ssl_client_context, localhost,
 ):
+    event = asyncio.Event()
+
     class TestService(TLSServer):
         DATA = []
 
@@ -296,6 +307,7 @@ def test_tls_server(
         ):
             self.DATA.append(await reader.readline())
             writer.close()
+            event.set()
 
     service = TestService(
         address="127.0.0.1", port=0,
@@ -326,12 +338,13 @@ def test_tls_server(
         loop.run_until_complete(
             asyncio.wait_for(writer(service.port), timeout=10),
         )
+        loop.run_until_complete(event.wait())
 
     assert TestService.DATA
     assert TestService.DATA == [b"hello server\n"]
 
 
-async def test_tls_client(loop, certs, localhost, aiomisc_socket_factory):
+async def test_tls_client(event_loop, certs, localhost, aiomisc_socket_factory):
     class TestService(TLSServer):
         DATA = []
 
@@ -343,7 +356,7 @@ async def test_tls_client(loop, certs, localhost, aiomisc_socket_factory):
             writer.close()
 
     class TestClient(TLSClient):
-        event: asyncio.Event()
+        event: asyncio.Event
 
         async def handle_connection(
             self, reader: asyncio.StreamReader,
@@ -383,7 +396,7 @@ async def test_tls_client(loop, certs, localhost, aiomisc_socket_factory):
 
 
 async def test_robust_tls_client(
-    loop, aiomisc_socket_factory, localhost, certs,
+    event_loop, aiomisc_socket_factory, localhost, certs,
 ):
     condition = asyncio.Condition()
 
@@ -444,11 +457,14 @@ async def test_robust_tls_client(
 def test_udp_server(aiomisc_socket_factory):
     port, sock = aiomisc_socket_factory(socket.AF_INET, socket.SOCK_DGRAM)
 
+    event = asyncio.Event()
+
     class TestService(UDPServer):
         DATA = []
 
-        async def handle_datagram(self, data: bytes, addr: tuple):
+        async def handle_datagram(self, data: bytes, addr: tuple) -> None:
             self.DATA.append(data)
+            event.set()
 
     service = TestService("127.0.0.1", sock=sock)
 
@@ -463,6 +479,7 @@ def test_udp_server(aiomisc_socket_factory):
         loop.run_until_complete(
             asyncio.wait_for(writer(), timeout=10),
         )
+        loop.run_until_complete(event.wait())
 
     assert TestService.DATA
     assert TestService.DATA == [b"hello server\n"]
@@ -507,14 +524,7 @@ def test_udp_socket_server(unix_socket_udp):
             sock.sendto(b"hello server\n", unix_socket_udp.getsockname())
 
     with aiomisc.entrypoint(service) as loop:
-        if type(loop) == uvloop_loop_type:
-            raise pytest.skip(
-                "https://github.com/MagicStack/uvloop/issues/269",
-            )
-
-        loop.run_until_complete(
-            asyncio.wait_for(writer(), timeout=10),
-        )
+        loop.run_until_complete(asyncio.wait_for(writer(), timeout=10))
 
     assert TestService.DATA
     assert TestService.DATA == [b"hello server\n"]
@@ -551,11 +561,11 @@ def test_tcp_server_unix(unix_socket_tcp):
 
 def test_aiohttp_service_create_app():
     with pytest.raises(TypeError):
-        class _(AIOHTTPService):
+        class NoAsyncCreateApplication(AIOHTTPService):
             def create_application(self):
                 return None
 
-    class _(AIOHTTPService):
+    class AsyncCreateApplication(AIOHTTPService):
         async def create_application(self):
             return aiohttp.web.Application()
 
@@ -606,11 +616,11 @@ def test_aiohttp_service_sock(unix_socket_tcp):
 
 def test_asgi_service_create_app():
     with pytest.raises(TypeError):
-        class _(ASGIHTTPService):
-            def create_asgi_app(self) -> ASGIApplicationType:
-                return lambda: None
+        class NoAsyncCreateASGIApp(ASGIHTTPService):
+            def create_asgi_app(self) -> ASGIApplicationType:   # type: ignore
+                return lambda: None                             # type: ignore
 
-    class _(ASGIHTTPService):
+    class AsyncCreateASGIApp(ASGIHTTPService):
         async def create_asgi_app(self) -> ASGIApplicationType:
             return fastapi.FastAPI()
 
@@ -786,7 +796,7 @@ async def test_entrypoint_with_with_async():
         async def start(self):
             self.__class__.ctx = 1
 
-        async def stop(self, exc: Exception = None):
+        async def stop(self, exc: Optional[Exception] = None) -> None:
             self.__class__.ctx = 2
 
     service = MyService()
@@ -803,17 +813,7 @@ async def test_entrypoint_with_with_async():
     assert service.ctx == 2
 
 
-async def test_entrypoint_graceful_shutdown_loop_owner(loop):
-    class MyEntrypoint(Entrypoint):
-        PRE_START = Signal()
-        POST_STOP = Signal()
-        POST_START = Signal()
-        PRE_STOP = Signal()
-
-        def __del__(self):
-            # No close event loop when del
-            pass
-
+async def test_entrypoint_graceful_shutdown_loop_owner(event_loop):
     event = Event()
     task: Task
 
@@ -831,11 +831,96 @@ async def test_entrypoint_graceful_shutdown_loop_owner(loop):
         with suppress(asyncio.TimeoutError):
             await asyncio.wait_for(task, timeout=1.0)
 
-    MyEntrypoint.PRE_START.connect(pre_start)
-    MyEntrypoint.POST_STOP.connect(post_stop)
+    Entrypoint.PRE_START.connect(pre_start)
+    Entrypoint.POST_STOP.connect(post_stop)
 
-    async with MyEntrypoint() as entrypoint:
-        assert entrypoint.loop is loop
+    async with Entrypoint() as entrypoint:
+        assert entrypoint.loop is event_loop
+
+    Entrypoint.PRE_START.disconnect(pre_start)
+    Entrypoint.POST_STOP.disconnect(post_stop)
 
     assert task.done()
     assert not task.cancelled()
+
+
+class CucumberService(aiomisc.Service):
+    async def start(self) -> None:
+        return
+
+
+async def test_service_pickle():
+    cucumbers = [CucumberService(index=i) for i in range(100)]
+    pickled_cucumbers = pickle.dumps(cucumbers)
+
+    cucumbers.clear()
+
+    for idx, cucumber in enumerate(pickle.loads(pickled_cucumbers)):
+        assert cucumber.index == idx
+
+
+class StorageService(aiomisc.Service):
+    INSTANCES: Set["StorageService"] = set()
+
+    async def start(self) -> None:
+        self.INSTANCES.add(self)
+
+    async def stop(self, exc: Optional[Exception] = None) -> None:
+        self.INSTANCES.remove(self)
+
+
+async def test_add_remove_service(entrypoint: aiomisc.Entrypoint):
+    StorageService.INSTANCES.clear()
+
+    service = StorageService()
+
+    await entrypoint.start_services(service)
+    assert len(StorageService.INSTANCES) == 1
+    assert service in StorageService.INSTANCES
+
+    await entrypoint.stop_services(service)
+    assert service not in StorageService.INSTANCES
+
+    assert len(StorageService.INSTANCES) == 0
+
+    for service in map(lambda _: StorageService(), range(10)):
+        await entrypoint.start_services(service)
+
+    assert len(StorageService.INSTANCES) == 10
+
+
+@pytest.mark.parametrize(
+    "entrypoint_logging_kwargs,basic_config_kwargs", [
+        (
+            {},
+            {
+                "level": LogLevel.info.name,
+                "log_format": LogFormat.default(),
+                "date_format": None,
+            },
+        ),
+        (
+            {
+                "log_level": LogLevel.debug,
+                "log_format": LogFormat.stream,
+                "log_date_format": DateFormat.stream,
+            },
+            {
+                "level": LogLevel.debug,
+                "log_format": LogFormat.stream,
+                "date_format": DateFormat.stream,
+            },
+        ),
+    ],
+)
+def test_entrypoint_log_params(entrypoint_logging_kwargs, basic_config_kwargs):
+    with mock.patch("aiomisc_log.basic_config") as basic_config_mock:
+        with entrypoint(**entrypoint_logging_kwargs):
+            pass
+
+        # unbuffered logging is configured on init, buffered on start,
+        # unbuffered on stop.
+        assert basic_config_mock.call_count == 3
+        for call_args, call_kwargs in basic_config_mock.call_args_list:
+            for key, value in basic_config_kwargs.items():
+                assert call_kwargs[key] == value
