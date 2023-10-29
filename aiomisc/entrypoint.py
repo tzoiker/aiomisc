@@ -3,6 +3,7 @@ import logging
 import os
 import signal
 import sys
+import threading
 from concurrent.futures import Executor
 from typing import (
     Any, Callable, Coroutine, FrozenSet, MutableSet, Optional, Set, Tuple,
@@ -29,6 +30,10 @@ log = logging.getLogger(__name__)
 
 asyncio_all_tasks = asyncio.all_tasks
 asyncio_current_task = asyncio.current_task
+
+
+def is_main_thread() -> bool:
+    return threading.current_thread() == threading.main_thread()
 
 
 def _get_env_bool(name: str, default: str) -> bool:
@@ -143,10 +148,9 @@ class Entrypoint:
         log_config: bool = DEFAULT_AIOMISC_LOG_CONFIG,
         policy: asyncio.AbstractEventLoopPolicy = event_loop_policy,
         debug: bool = DEFAULT_AIOMISC_DEBUG,
-        catch_signals: Tuple[int, ...] = (signal.SIGINT, signal.SIGTERM),
+        catch_signals: Optional[Tuple[int, ...]] = None,
         shutdown_timeout: Union[int, float] = AIOMISC_SHUTDOWN_TIMEOUT,
     ):
-
         """ Creates a new Entrypoint
 
         :param debug: set debug to event-loop
@@ -173,9 +177,14 @@ class Entrypoint:
         self._thread_pool: Optional[ExecutorType] = None
         self._closing: Optional[asyncio.Event] = None
 
+        if catch_signals is None and is_main_thread():
+            # Apply default catch signals only if the entrypoint is creating
+            # in only in main thread
+            catch_signals = (signal.SIGINT, signal.SIGTERM)
+
         self._signal_handlers = [
             OSSignalHandler(sig, self._on_interrupt_callback)
-            for sig in catch_signals
+            for sig in catch_signals or ()
         ]
 
         self.catch_signals = catch_signals
@@ -375,9 +384,13 @@ class Entrypoint:
             await self.post_stop.call(entrypoint=self, services=svc)
 
     async def _cancel_background_tasks(self) -> None:
-        tasks = asyncio_all_tasks(self._loop)
         current_task = asyncio_current_task(self.loop)
-        await cancel_tasks(task for task in tasks if task is not current_task)
+        await cancel_tasks(
+            filter(
+                lambda x: x is not current_task,
+                asyncio_all_tasks(self._loop),
+            ),
+        )
 
     async def graceful_shutdown(self, exception: Exception) -> None:
         if self._closing:
@@ -398,22 +411,27 @@ class Entrypoint:
     def _on_interrupt(self, loop: asyncio.AbstractEventLoop) -> None:
         async def shutdown() -> None:
             log.warning("Interrupt signal received, shutting down...")
-            try:
-                await asyncio.wait_for(
-                    self._stop(RuntimeError("Interrupt signal received")),
-                    timeout=self.shutdown_timeout,
-                )
-            except asyncio.TimeoutError as e:
+            await self._stop(RuntimeError("Interrupt signal received"))
+
+        task = loop.create_task(shutdown())
+        handle = loop.call_later(self.shutdown_timeout, task.cancel)
+
+        def on_shutdown_finish(task: asyncio.Future) -> None:
+            nonlocal handle, loop
+
+            if task.cancelled():
                 log.warning(
                     "Shutdown did not happen in %s seconds, aborting.",
                     self.shutdown_timeout,
                 )
-                # 70 from sysexits.h means "internal software error"
-                raise SystemExit(70) from e
+            handle.cancel()
+            loop.stop()
 
-        self.loop.create_task(shutdown()).add_done_callback(
-            lambda _: loop.stop(),
-        )
+            if task.cancelled():
+                # 70 from sysexits.h means "internal software error"
+                raise SystemExit(70)
+
+        task.add_done_callback(on_shutdown_finish)
 
 
 CURRENT_ENTRYPOINT: StrictContextVar[Entrypoint] = StrictContextVar(
@@ -432,4 +450,6 @@ def run(
         return loop.run_until_complete(coro)
 
 
-__all__ = ("entrypoint", "Entrypoint", "get_context", "run")
+__all__ = (
+    "CURRENT_ENTRYPOINT", "Entrypoint", "entrypoint", "get_context", "run",
+)

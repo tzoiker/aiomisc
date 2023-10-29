@@ -4,10 +4,10 @@ import math
 import platform
 import time
 from asyncio import Event, wait
+from contextvars import ContextVar
 from typing import Any, List, Sequence
 
 import pytest
-from aiocontextvars import ContextVar  # type: ignore
 
 from aiomisc.aggregate import Arg, ResultNotSetError, aggregate, aggregate_async
 
@@ -35,13 +35,14 @@ def leeway() -> float:
         return await asyncio.gather(*tasks)
 
     ts: Sequence[float] = asyncio.run(run())
-    estimated = max(ts) * 3
+    estimated = max(ts) * 5
     default = 0.1
+    result = max(estimated, default)
 
     if estimated > default:
-        log.warning("Slow system: leeway increased to %.2f s", leeway)
+        log.warning("Slow system: leeway increased to %.2f s", result)
 
-    return max(estimated, default)
+    return result
 
 
 async def test_invalid_func():
@@ -203,7 +204,7 @@ async def test_leeway_cancel(event_loop, leeway):
     delay_exec = 0.1
     event = Event()
     executions = 0
-    arg = ContextVar("arg")
+    arg: ContextVar = ContextVar("arg")
     tasks: List[asyncio.Task] = []
     executing_task: asyncio.Task
 
@@ -262,7 +263,7 @@ async def test_max_count_cancel(event_loop):
     executions = 0
     leeway = 100
     max_count = 5
-    arg = ContextVar("arg")
+    arg: ContextVar = ContextVar("arg")
     tasks: List[asyncio.Task] = []
     executing_task: asyncio.Task
 
@@ -321,7 +322,7 @@ async def test_max_count_multiple_batches_cancel(event_loop, leeway):
     event = Event()
     executions = 0
     max_count = 5
-    arg = ContextVar("arg")
+    arg: ContextVar = ContextVar("arg")
     tasks: List[asyncio.Task] = []
     executing_task: asyncio.Task
 
