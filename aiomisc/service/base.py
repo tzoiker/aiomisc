@@ -1,31 +1,28 @@
 import asyncio
+import inspect
 from abc import ABC, ABCMeta, abstractmethod
-from typing import (
-    Any, Coroutine, Dict, Generator, Optional, Set, Tuple, TypeVar, Union,
-)
+from collections.abc import Coroutine
+from typing import Any, TypeVar
 
 from ..context import Context, get_context
 from ..utils import cancel_tasks
 
-
 T = TypeVar("T")
-CoroutineType = Union[Coroutine[Any, Any, T], Generator[Any, None, T]]
+CoroutineType = Coroutine[Any, Any, T]
 
 
 class ServiceMeta(ABCMeta):
     def __new__(
-        cls, name: str, bases: Tuple, namespace: Dict, **kwds: Any,
+        cls, name: str, bases: tuple, namespace: dict, **kwds: Any
     ) -> Any:
-        instance = super().__new__(
-            cls, name, bases, dict(namespace),
-        )
+        instance = super().__new__(cls, name, bases, dict(namespace))
 
         for key in ("__async_required__", "__required__"):
             setattr(instance, key, frozenset(getattr(instance, key, ())))
 
         check_instance = all(
-            asyncio.iscoroutinefunction(getattr(instance, method))
-            for method in instance.__async_required__   # type: ignore
+            inspect.iscoroutinefunction(getattr(instance, method))
+            for method in instance.__async_required__  # type: ignore
         )
 
         if not check_instance:
@@ -33,7 +30,7 @@ class ServiceMeta(ABCMeta):
                 "Following methods must be coroutine functions",
                 tuple(
                     f"{name}.{m}"
-                    for m in instance.__async_required__    # type: ignore
+                    for m in instance.__async_required__  # type: ignore
                 ),
             )
 
@@ -41,10 +38,10 @@ class ServiceMeta(ABCMeta):
 
 
 class Service(metaclass=ServiceMeta):
-    __async_required__: Tuple[str, ...] = ("start", "stop")
-    __required__: Tuple[str, ...] = ()
+    __async_required__: tuple[str, ...] = ("start", "stop")
+    __required__: tuple[str, ...] = ()
 
-    _instance_params: Dict[str, Any]
+    _instance_params: dict[str, Any]
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "Service":
         instance = super().__new__(cls)
@@ -57,8 +54,8 @@ class Service(metaclass=ServiceMeta):
             raise AttributeError("Absent attributes", lost_kw)
 
         self._set_params(**kwargs)
-        self.__context: Optional[Context] = None
-        self.__start_event: Optional[asyncio.Event] = None
+        self.__context: Context | None = None
+        self.__start_event: asyncio.Event | None = None
 
     def __getattr__(self, key: str) -> Any:
         try:
@@ -67,7 +64,7 @@ class Service(metaclass=ServiceMeta):
             raise AttributeError(key) from e
 
     def __setattr__(self, key: str, value: Any) -> None:
-        super(Service, self).__setattr__(key, value)
+        super().__setattr__(key, value)
         if key in self._instance_params:
             self._instance_params[key] = value
 
@@ -95,46 +92,46 @@ class Service(metaclass=ServiceMeta):
         for name, value in kwargs.items():
             setattr(self, name, value)
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         return self._instance_params
 
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self._set_params(**state)
 
     @abstractmethod
     async def start(self) -> Any:
         raise NotImplementedError
 
-    async def stop(self, exception: Optional[Exception] = None) -> Any:
+    async def stop(self, exception: Exception | None = None) -> Any:
         pass
 
 
 class TaskStoreBase(Service, ABC):
     def __init__(self, **kwargs: Any):
-        self.tasks: Set[asyncio.Task] = set()
+        self.tasks: set[asyncio.Task] = set()
         super().__init__(**kwargs)
 
     def create_task(self, coro: CoroutineType) -> asyncio.Task:
         task: asyncio.Task = self.loop.create_task(coro)
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.remove)
+        task.add_done_callback(self.tasks.discard)
         return task
 
-    async def stop(self, exc: Optional[Exception] = None) -> None:
+    async def stop(self, exc: Exception | None = None) -> None:
         await cancel_tasks(self.tasks)
 
 
 class SimpleServer(TaskStoreBase):
     def __init__(self, **kwargs: Any):
-        self.server: Optional[asyncio.AbstractServer] = None
-        self.tasks: Set[asyncio.Task] = set()
+        self.server: asyncio.AbstractServer | None = None
+        self.tasks: set[asyncio.Task] = set()
         super().__init__(**kwargs)
 
     @abstractmethod
     async def start(self) -> None:
         raise NotImplementedError
 
-    async def stop(self, exc: Optional[Exception] = None) -> None:
+    async def stop(self, exc: Exception | None = None) -> None:
         await super().stop(exc)
 
         if self.server:

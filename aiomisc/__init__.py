@@ -1,7 +1,7 @@
 from . import io, log
-from ._context_vars import StrictContextVar
+from .context_vars import StrictContextVar
 from .aggregate import aggregate, aggregate_async
-from .backoff import asyncbackoff, asyncretry
+from .backoff import Backoff, BackoffExecution, asyncbackoff, asyncretry
 from .circuit_breaker import CircuitBreaker, CircuitBroken, cutout
 from .context import Context, get_context
 from .counters import Statistic, get_statistics
@@ -12,26 +12,41 @@ from .plugins import plugins
 from .pool import PoolBase
 from .process_pool import ProcessPoolExecutor
 from .recurring import (
-    RecurringCallback, StrategyException, StrategySkip, StrategyStop,
+    RecurringCallback,
+    StrategyException,
+    StrategySkip,
+    StrategyStop,
 )
 from .service import Service
 from .signal import Signal, receiver
 from .thread_pool import (
-    IteratorWrapperSeparate, ThreadPoolExecutor, context_partial, sync_await,
-    sync_wait_coroutine, threaded, threaded_iterable,
-    threaded_iterable_separate, threaded_separate, wait_coroutine,
+    IteratorWrapperSeparate,
+    ThreadPoolExecutor,
+    sync_await,
+    sync_wait_coroutine,
+    threaded,
+    threaded_iterable,
+    threaded_iterable_separate,
+    threaded_separate,
+    wait_coroutine,
 )
 from .timeout import timeout
 from .utils import (
-    SelectResult, awaitable, bind_socket, cancel_tasks, chunk_list,
-    new_event_loop, select, shield,
+    SelectResult,
+    awaitable,
+    bind_socket,
+    cancel_tasks,
+    chunk_list,
+    select,
+    shield,
 )
-from .version import __version__, version_info
+from .version import __version__, __version_tuple__ as version_info
 from .worker_pool import WorkerPool
-
 
 __all__ = (
     "CURRENT_ENTRYPOINT",
+    "Backoff",
+    "BackoffExecution",
     "CircuitBreaker",
     "CircuitBroken",
     "Context",
@@ -61,14 +76,12 @@ __all__ = (
     "bind_socket",
     "cancel_tasks",
     "chunk_list",
-    "context_partial",
     "cutout",
     "entrypoint",
     "get_context",
     "get_statistics",
     "io",
     "log",
-    "new_event_loop",
     "plugins",
     "receiver",
     "run",

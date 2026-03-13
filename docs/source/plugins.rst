@@ -7,7 +7,7 @@ enhance aiomisc by mean of signals_.
 .. _signals: #signal
 
 To make your plugin discoverable by aiomisc you should add
-``aiomisc.plugins`` entry to entry to ``entry_points`` argument of ``setup``
+``aiomisc.plugins`` entry to ``entry_points`` argument of ``setup``
 call in ``setup.py`` of a plugin.
 
 .. code-block:: python
@@ -88,6 +88,9 @@ currently starting or stopping will be in the ``services`` parameter.
         assert event.is_set()
 
     main()
+
+    # remove the plugin on when unneeded
+    aiomisc.entrypoint.PRE_START.disconnect(hello)
 
 
 The following signals are available in total:

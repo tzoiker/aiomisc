@@ -1,12 +1,11 @@
 import logging
 import tracemalloc
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any, Union
 
 from ..periodic import PeriodicCallback
 from ..service import Service
 from ..thread_pool import threaded
-
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +27,7 @@ class MemoryTracer(Service):
     top_results: int = 20
 
     group_by: GroupBy = GroupBy.lineno
+    name: str = "memory-tracer"
 
     STAT_FORMAT: str = (
         "%(count)8s | "
@@ -41,17 +41,17 @@ class MemoryTracer(Service):
         log.warning("Start memory tracer")
         tracemalloc.start()
 
-        self._tracer = PeriodicCallback(self.show_stats)
+        self._tracer = PeriodicCallback(self.show_stats, name=self.name)
         self._log = log.getChild(str(id(self)))
 
         self._snapshot_on_start = self.take_snapshot()
         self._tracer.start(self.interval)
 
     @staticmethod
-    def humanize(num: Union[int, float], suffix: str = "B") -> str:
+    def humanize(num: int | float, suffix: str = "B") -> str:
         for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
             if abs(num) < 1024.0:
-                return "{:3.1f}{}{}".format(num, unit, suffix)
+                return f"{num:3.1f}{unit}{suffix}"
             num /= 1024.0
         return "{:.1f}{}{}".format(num, "Yi", suffix)
 
@@ -60,12 +60,13 @@ class MemoryTracer(Service):
         return tracemalloc.take_snapshot()
 
     def compare_snapshot(
-        self, snapshot_from: tracemalloc.Snapshot,
+        self,
+        snapshot_from: tracemalloc.Snapshot,
         snapshot_to: tracemalloc.Snapshot,
-    ) -> List[tracemalloc.StatisticDiff]:
+    ) -> list[tracemalloc.StatisticDiff]:
         return snapshot_to.compare_to(snapshot_from, self.group_by.value)
 
-    def log_diff(self, diff: List[tracemalloc.StatisticDiff]) -> None:
+    def log_diff(self, diff: list[tracemalloc.StatisticDiff]) -> None:
         results = self.STAT_FORMAT % {
             "count": "Objects",
             "count_diff": "Obj.Diff",
@@ -73,7 +74,7 @@ class MemoryTracer(Service):
             "size_diff": "Mem.Diff",
             "traceback": "Traceback",
         }
-        for stat in diff[:self.top_results]:
+        for stat in diff[: self.top_results]:
             results += self.STAT_FORMAT % {
                 "count": stat.count,
                 "count_diff": stat.count_diff,
@@ -90,11 +91,10 @@ class MemoryTracer(Service):
             raise RuntimeError
 
         differences = self.compare_snapshot(
-            self._snapshot_on_start,
-            self.take_snapshot(),
+            self._snapshot_on_start, self.take_snapshot()
         )
 
         return self.log_diff(differences)
 
-    async def stop(self, exception: Optional[Exception] = None) -> None:
+    async def stop(self, exception: Exception | None = None) -> None:
         tracemalloc.stop()

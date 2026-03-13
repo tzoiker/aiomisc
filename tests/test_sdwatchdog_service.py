@@ -5,7 +5,8 @@ import socket
 from collections import Counter, defaultdict, deque
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Deque, MutableMapping, Tuple
+from typing import Any, Deque, Tuple
+from collections.abc import MutableMapping
 
 import pytest
 
@@ -13,10 +14,8 @@ import aiomisc
 from aiomisc import bind_socket
 from aiomisc.service import UDPServer, sdwatchdog
 
-
 pytestmark = pytest.mark.skipif(
-    platform.system() == "Windows",
-    reason="Unix only tests",
+    platform.system() == "Windows", reason="Unix only tests"
 )
 
 
@@ -25,34 +24,45 @@ def test_sdwatchdog_service(event_loop):
         tmp_path = Path(tmp_dir)
         sock_path = str(tmp_path / "notify.sock")
 
-        packets: Deque[Tuple[Any, ...]] = deque()
+        packets: deque[tuple[Any, ...]] = deque()
+        watchdog_count = 0
+        enough_watchdogs = asyncio.Event()
+        required_watchdogs = 10
 
         class FakeSystemd(UDPServer):
             async def handle_datagram(
-                self, data: bytes, addr: Tuple[Any, ...],
+                self, data: bytes, addr: tuple[Any, ...]
             ) -> None:
+                nonlocal watchdog_count
                 key: str
                 value: str
                 key, value = data.decode().split("=", 1)
                 packets.append(((key, value), addr))
+                if key == "WATCHDOG":
+                    watchdog_count += 1
+                    if watchdog_count >= required_watchdogs:
+                        enough_watchdogs.set()
 
         with bind_socket(
-            socket.AF_UNIX, socket.SOCK_DGRAM, address=sock_path,
+            socket.AF_UNIX,
+            socket.SOCK_DGRAM,
+            address=sock_path,
+            reuse_port=False,
         ) as sock:
             try:
                 os.environ["NOTIFY_SOCKET"] = sock_path
                 os.environ["WATCHDOG_USEC"] = "100000"
 
                 service = sdwatchdog.SDWatchdogService(
-                    watchdog_interval=sdwatchdog._get_watchdog_interval(),
+                    watchdog_interval=sdwatchdog._get_watchdog_interval()
                 )
 
                 assert service.watchdog_interval == 0.1
 
                 with aiomisc.entrypoint(
-                    FakeSystemd(sock=sock), service, loop=event_loop,
+                    FakeSystemd(sock=sock), service, loop=event_loop
                 ):
-                    event_loop.run_until_complete(asyncio.sleep(1))
+                    event_loop.run_until_complete(enough_watchdogs.wait())
             finally:
                 for key in ("NOTIFY_SOCKET", "WATCHDOG_USEC"):
                     os.environ.pop(key)
@@ -67,7 +77,7 @@ def test_sdwatchdog_service(event_loop):
         messages_count[key] += 1
         messages[key].add(value)
 
-    assert 5 < messages_count["WATCHDOG"] < 25
-    assert messages_count["STATUS"] == 2
+    assert messages_count["WATCHDOG"] >= required_watchdogs
+    assert messages_count["STATUS"] == 2  # startup + shutdown
     assert messages_count["WATCHDOG_USEC"] == 1
     assert tuple(messages["WATCHDOG_USEC"])[0] == "100000"

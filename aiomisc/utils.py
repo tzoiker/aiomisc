@@ -1,30 +1,33 @@
 import asyncio
+import inspect
 import itertools
 import logging.handlers
 import socket
 import uuid
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Collection,
+    Coroutine,
+    Generator,
+    Iterable,
+    Iterator,
+)
 from functools import wraps
 from random import getrandbits
-from typing import (
-    Any, Awaitable, Callable, Collection, Coroutine, Generator, Iterable,
-    Iterator, List, Optional, Set, Tuple, TypeVar, Union,
-)
+from typing import Any, TypeVar
 
-from .compat import (
-    event_loop_policy, sock_set_nodelay, sock_set_reuseport, time_ns,
-)
-from .thread_pool import ThreadPoolExecutor
-
+from .compat import sock_set_nodelay, sock_set_reuseport, time_ns
 
 T = TypeVar("T", bound=Any)
-TimeoutType = Union[int, float]
+TimeoutType = int | float
 
 
 log = logging.getLogger(__name__)
 
 
 def fast_uuid4() -> uuid.UUID:
-    """ Fast UUID4 like identifier """
+    """Fast UUID4 like identifier"""
     return uuid.UUID(int=getrandbits(128), version=4)
 
 
@@ -32,14 +35,14 @@ __NODE = uuid.getnode()
 
 
 def fast_uuid1() -> uuid.UUID:
-    """ Fast UUID1 like identifier """
+    """Fast UUID1 like identifier"""
     value = time_ns()
     value = (value << 16) + getrandbits(16)
     value = (value << 48) + __NODE
     return uuid.UUID(int=value, version=1)
 
 
-def chunk_list(iterable: Iterable[T], size: int) -> Iterable[List[T]]:
+def chunk_list(iterable: Iterable[T], size: int) -> Iterable[list[T]]:
     """
     Split list or generator by chunks with fixed maximum size.
     """
@@ -52,13 +55,17 @@ def chunk_list(iterable: Iterable[T], size: int) -> Iterable[List[T]]:
         item = list(itertools.islice(iterable, size))
 
 
-OptionsType = Iterable[Tuple[int, int, int]]
+OptionsType = Iterable[tuple[int, int, int]]
 
 
 def bind_socket(
-    *args: Any, address: str, port: int = 0, options: OptionsType = (),
-    reuse_addr: bool = True, reuse_port: bool = True,
-    proto_name: Optional[str] = None,
+    *args: Any,
+    address: str,
+    port: int = 0,
+    options: OptionsType = (),
+    reuse_addr: bool = True,
+    reuse_port: bool = True,
+    proto_name: str | None = None,
 ) -> socket.socket:
     """
 
@@ -88,6 +95,10 @@ def bind_socket(
     if not args and ":" in address:
         sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
 
+    unix_address_family = getattr(socket, "AF_UNIX", None)
+    if sock.family == unix_address_family:
+        reuse_port = False
+
     if reuse_addr:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -99,7 +110,6 @@ def bind_socket(
     for level, option, value in options:
         sock.setsockopt(level, option, value)
 
-    unix_address_family = getattr(socket, "AF_UNIX", None)
     if sock.family == unix_address_family:
         proto_name = proto_name or "unix"
         sock.bind(address)
@@ -119,54 +129,6 @@ def bind_socket(
         log.info("Listening %s://%s:%s", proto_name, *sock_addr)
 
     return sock
-
-
-def create_default_event_loop(
-    pool_size: Optional[int] = None,
-    policy: asyncio.AbstractEventLoopPolicy = event_loop_policy,
-    debug: bool = False,
-) -> Tuple[asyncio.AbstractEventLoop, ThreadPoolExecutor]:
-    """
-    Creates an event loop and thread pool executor
-
-    :param pool_size: thread pool maximal size
-    :param policy: event loop policy
-    :param debug: set ``loop.set_debug(True)`` if True
-    """
-
-    current_loop_is_running = False
-    try:
-        current_loop = asyncio.get_event_loop()
-        current_loop_is_running = current_loop.is_running()
-        del current_loop
-    except RuntimeError:
-        pass
-
-    if current_loop_is_running:
-        raise RuntimeError(
-            "Trying to create new event loop instance but another "
-            "default loop in this thread is running right now.",
-        )
-
-    asyncio.set_event_loop_policy(policy)
-
-    loop = asyncio.new_event_loop()
-    loop.set_debug(debug)
-    asyncio.set_event_loop(loop)
-
-    pool_size = pool_size or ThreadPoolExecutor.DEFAULT_POOL_SIZE
-    thread_pool = ThreadPoolExecutor(pool_size, statistic_name="default")
-    loop.set_default_executor(thread_pool)
-
-    return loop, thread_pool
-
-
-def new_event_loop(
-    pool_size: Optional[int] = None,
-    policy: asyncio.AbstractEventLoopPolicy = event_loop_policy,
-) -> asyncio.AbstractEventLoop:
-    loop, thread_pool = create_default_event_loop(pool_size, policy)
-    return loop
 
 
 def shield(
@@ -192,13 +154,13 @@ def shield(
 
 
 class SelectResult(Collection):
-    __slots__ = ("length", "result_idx", "is_exception", "value")
+    __slots__ = ("is_exception", "length", "result_idx", "value")
 
     def __init__(self, length: int):
         self.length = length
-        self.result_idx = None      # type: Optional[int]
-        self.is_exception = None    # type: Optional[bool]
-        self.value = None           # type: Any
+        self.result_idx: int | None = None
+        self.is_exception: bool | None = None
+        self.value: Any = None
 
     def __len__(self) -> int:
         return self.length
@@ -222,7 +184,7 @@ class SelectResult(Collection):
     def done(self) -> bool:
         return self.result_idx is not None
 
-    def __iter__(self) -> Iterator[Optional[T]]:
+    def __iter__(self) -> Iterator[T | None]:
         for i in range(self.length):
             yield self.value if i == self.result_idx else None
 
@@ -233,17 +195,25 @@ class SelectAwaitable:
     """
 
     __slots__ = (
-        "_awaitables", "_return_exceptions", "_timeout", "_wait",
-        "__loop", "_cancel", "_result",
+        "__loop",
+        "_awaitables",
+        "_cancel",
+        "_result",
+        "_return_exceptions",
+        "_timeout",
+        "_wait",
     )
 
     _result: SelectResult
 
     def __init__(
-        self, *awaitables: Awaitable[T],
-        return_exceptions: bool = False, cancel: bool = True,
-        timeout: Optional[TimeoutType] = None,
-        wait: bool = True, loop: Optional[asyncio.AbstractEventLoop] = None,
+        self,
+        *awaitables: Awaitable[T],
+        return_exceptions: bool = False,
+        cancel: bool = True,
+        timeout: TimeoutType | None = None,
+        wait: bool = True,
+        loop: asyncio.AbstractEventLoop | None = None,
     ):
         """
         :param awaitables: awaitable objects
@@ -277,9 +247,7 @@ class SelectAwaitable:
             return self._result.set_result(idx, e, is_exception=True)
         self._result.set_result(idx, ret, is_exception=False)
 
-    async def __run(
-        self, coroutines: Iterable[asyncio.Future],
-    ) -> SelectResult:
+    async def __run(self, coroutines: Iterable[asyncio.Future]) -> SelectResult:
         try:
             _, pending = await asyncio.wait(
                 coroutines,
@@ -330,8 +298,8 @@ def pending_futures(
 
 def set_exception(
     futures: Iterable[asyncio.Future],
-    exc: Union[BaseException] = asyncio.CancelledError(),
-) -> Set[asyncio.Task]:
+    exc: BaseException = asyncio.CancelledError(),
+) -> set[asyncio.Task]:
     cancelled_tasks = set()
 
     for future in pending_futures(futures):
@@ -342,8 +310,7 @@ def set_exception(
             future.set_exception(exc)
         else:
             log.warning(
-                "Skipping object %r because it's not a Task or Future",
-                future,
+                "Skipping object %r because it's not a Task or Future", future
             )
     return cancelled_tasks
 
@@ -368,9 +335,7 @@ def cancel_tasks(tasks: Iterable[asyncio.Future]) -> asyncio.Future:
         return future
 
     waiter = asyncio.ensure_future(
-        asyncio.gather(
-            *cancelled_tasks, return_exceptions=True,
-        ),
+        asyncio.gather(*cancelled_tasks, return_exceptions=True)
     )
 
     return waiter
@@ -380,7 +345,7 @@ AT = TypeVar("AT", bound=Any)
 
 
 def awaitable(
-    func: Callable[..., Union[AT, Awaitable[AT]]],
+    func: Callable[..., AT | Awaitable[AT]],
 ) -> Callable[..., Awaitable[AT]]:
     """
 
@@ -395,7 +360,7 @@ def awaitable(
     """
 
     # Avoid python 3.8+ warning
-    if asyncio.iscoroutinefunction(func):
+    if inspect.iscoroutinefunction(func):
         return func
 
     async def awaiter(obj: AT) -> AT:
@@ -410,6 +375,6 @@ def awaitable(
         if asyncio.iscoroutine(result) or asyncio.isfuture(result):
             return result
 
-        return awaiter(result)      # type: ignore
+        return awaiter(result)  # type: ignore
 
     return wrap

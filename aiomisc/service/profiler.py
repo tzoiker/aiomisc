@@ -2,24 +2,25 @@ import cProfile
 import io
 import logging
 from pstats import Stats
-from typing import Optional
 
 from ..periodic import PeriodicCallback
 from .base import Service
 
 
 class Profiler(Service):
-    profiler = None        # type: cProfile.Profile
-    periodic = None        # type: PeriodicCallback
+    profiler: cProfile.Profile
+    periodic: PeriodicCallback
 
-    order = "cumulative"    # type: str
+    order: str = "cumulative"
 
-    path = None             # type: str
-    logger = None           # type: logging.Logger
+    path: str | None = None
+    logger: logging.Logger
 
-    interval = 10           # type: int
-    top_results = 10        # type: int
-    log = logging.getLogger(__name__)   # type: logging.Logger
+    interval: int = 10
+    top_results: int = 10
+    log: logging.Logger = logging.getLogger(__name__)
+
+    name: str = "profiler"
 
     async def start(self) -> None:
         self.logger = self.log.getChild(str(id(self)))
@@ -32,9 +33,11 @@ class Profiler(Service):
 
     def save_stats(self) -> None:
         with io.StringIO() as stream:
-            stats = Stats(
-                self.profiler, stream=stream,
-            ).strip_dirs().sort_stats(self.order)
+            stats = (
+                Stats(self.profiler, stream=stream)
+                .strip_dirs()
+                .sort_stats(self.order)
+            )
 
             stats.print_stats(self.top_results)
             self.logger.info(stream.getvalue())
@@ -45,7 +48,7 @@ class Profiler(Service):
             finally:
                 self.profiler.enable()
 
-    async def stop(self, exception: Optional[Exception] = None) -> None:
+    async def stop(self, exception: Exception | None = None) -> None:
         self.logger.info("Stop profiler")
         await self.periodic.stop(return_exceptions=True)
         self.profiler.disable()

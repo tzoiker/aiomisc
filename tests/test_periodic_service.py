@@ -6,7 +6,6 @@ import pytest
 import aiomisc
 from aiomisc.service.periodic import PeriodicService
 
-
 pytestmark = pytest.mark.catch_loop_exceptions
 
 
@@ -42,18 +41,12 @@ def test_periodic(event_loop):
         for i in (5, 10):
             async with condition:
                 await asyncio.wait_for(
-                    condition.wait_for(lambda: counter >= i),
-                    timeout=10,
+                    condition.wait_for(lambda: counter >= i), timeout=10
                 )
             assert counter == i
 
     with aiomisc.entrypoint(svc, loop=event_loop) as loop:
-        loop.run_until_complete(
-            asyncio.wait_for(
-                assert_counter(),
-                timeout=10,
-            ),
-        )
+        loop.run_until_complete(asyncio.wait_for(assert_counter(), timeout=10))
 
 
 def test_delay(event_loop):
@@ -79,8 +72,7 @@ def test_delay(event_loop):
 
         async with condition:
             await asyncio.wait_for(
-                condition.wait_for(lambda: counter == 5),
-                timeout=5,
+                condition.wait_for(lambda: counter == 5), timeout=5
             )
 
         await svc.stop(None)

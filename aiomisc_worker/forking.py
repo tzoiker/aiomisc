@@ -3,16 +3,16 @@ import gc
 import os
 import signal
 import sys
+from collections.abc import MutableMapping
 from contextlib import suppress
 from threading import Event, Lock
-from typing import Any, MutableMapping, Optional, Tuple
+from typing import Any
 
 from aiomisc_log import basic_config
 
 from . import INT_SIGNAL, AddressType, log
 from .protocol import FileIOProtocol
 from .worker import bad_initializer, worker
-
 
 PROCESSES: MutableMapping[int, bytes] = {}
 STOPPING = Event()
@@ -70,9 +70,9 @@ def main() -> int:
 
     address: AddressType = proto_stdin.receive()
     cookie: bytes = proto_stdin.receive()
-    worker_ids: Tuple[bytes, ...] = proto_stdin.receive()
+    worker_ids: tuple[bytes, ...] = proto_stdin.receive()
     initializer, initializer_args, initializer_kwargs = proto_stdin.receive()
-    worker_id: Optional[bytes]
+    worker_id: bytes | None
 
     def run_initializer() -> None:
         # Saving the initializer result and prevent freeing it
@@ -84,7 +84,7 @@ def main() -> int:
             initializer(*initializer_args, **initializer_kwargs)
         except BaseException as e:
             log.exception(
-                "WorkerPool initializer %r has been failed", initializer,
+                "WorkerPool initializer %r has been failed", initializer
             )
             bad_initializer(address, cookie, worker_ids[0], e)
             raise SystemExit(0)

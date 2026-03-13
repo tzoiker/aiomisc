@@ -2,7 +2,8 @@ import asyncio
 import operator
 import socket
 from functools import reduce
-from typing import Any, Awaitable, Callable
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 import pytest
 from rpc.server import RPCServer
@@ -23,12 +24,12 @@ def server_port_sock(aiomisc_socket_factory):
 
 
 @pytest.fixture
-async def rpc_client(localhost, loop) -> RPCServer:
+async def rpc_client(localhost) -> RPCServer:
     return RPCServer(handlers=None, address=localhost, port=0)
 
 
 @pytest.fixture
-async def rpc_server(server_port_sock, loop, handlers) -> RPCServer:
+async def rpc_server(server_port_sock, handlers) -> RPCServer:
     _, sock = server_port_sock
     return RPCServer(handlers=handlers, sock=sock)
 
@@ -40,7 +41,7 @@ def services(rpc_server, rpc_client):
 
 @pytest.fixture
 async def rpc_call(
-    server_port_sock, localhost, rpc_client: RPCServer,
+    server_port_sock, localhost, rpc_client: RPCServer
 ) -> Callable[..., Awaitable[Any]]:
     port, _ = server_port_sock
 
@@ -62,7 +63,7 @@ async def test_division(rpc_call: Callable[..., Awaitable[Any]]):
     with pytest.raises(Exception):
         assert await rpc_call("div", a=1, b=0)
 
-    assert await rpc_call("div", a=10, b=5) == 2.
+    assert await rpc_call("div", a=10, b=5) == 2.0
 
 
 async def test_many(rpc_call: Callable[..., Awaitable[Any]]):

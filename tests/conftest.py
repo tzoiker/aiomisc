@@ -1,5 +1,3 @@
-import asyncio
-import concurrent.futures
 import os
 import ssl
 import time
@@ -9,12 +7,6 @@ from pathlib import Path
 import pytest
 
 import aiomisc
-
-
-try:
-    import uvloop
-except ImportError:
-    uvloop = None       # type: ignore
 
 
 @pytest.fixture
@@ -38,34 +30,8 @@ def timer():
     return timer
 
 
-thread_pool_implementation = (
-    aiomisc.ThreadPoolExecutor,
-    concurrent.futures.ThreadPoolExecutor,
-)
-
-
-thread_pool_ids = (
-    "aiomisc pool",
-    "default pool",
-)
-
-
-@pytest.fixture(params=thread_pool_implementation, ids=thread_pool_ids)
 def thread_pool_executor(request):
-    return request.param
-
-
-policies = (asyncio.DefaultEventLoopPolicy(),)
-policy_ids = ("asyncio",)
-
-if uvloop:
-    policies = (uvloop.EventLoopPolicy(),) + policies   # type: ignore
-    policy_ids = ("uvloop",) + policy_ids               # type: ignore
-
-
-@pytest.fixture(params=policies, ids=policy_ids)
-def event_loop_policy(request):
-    return request.param
+    return aiomisc.ThreadPoolExecutor
 
 
 @pytest.fixture()
@@ -79,17 +45,13 @@ def ssl_client_context(certs):
     key = str(certs / "client.key")
     cert = str(certs / "client.pem")
 
-    context = ssl.create_default_context(
-        ssl.Purpose.SERVER_AUTH, capath=ca,
-    )
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, capath=ca)
 
     if key:
-        context.load_cert_chain(
-            cert,
-            key,
-        )
+        context.load_cert_chain(cert, key)
 
+    context.load_verify_locations(cafile=ca)
     context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+    context.verify_mode = ssl.VerifyMode.CERT_NONE
 
     return context

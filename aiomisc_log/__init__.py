@@ -2,26 +2,23 @@ import logging
 import logging.handlers
 import os
 import sys
+from collections.abc import Callable, Iterable
+from contextvars import ContextVar
+from dataclasses import dataclass
+from itertools import chain
 from types import TracebackType
-from typing import Any, Callable, Optional, Type, Union
+from typing import Any
 
 from .enum import LogFormat, LogLevel
 from .formatter import (
-    color_formatter, journald_formatter, json_handler, rich_formatter,
+    color_formatter,
+    journald_formatter,
+    json_handler,
+    rich_formatter,
 )
 
-
-LOG_LEVEL: Optional[Any] = None
-LOG_FORMAT: Optional[Any] = None
-
-try:
-    import contextvars
-    LOG_LEVEL = contextvars.ContextVar("LOG_LEVEL", default=logging.INFO)
-    LOG_FORMAT = contextvars.ContextVar(
-        "LOG_FORMAT", default=LogFormat.default(),
-    )
-except ImportError:
-    pass
+LOG_LEVEL: ContextVar = ContextVar("LOG_LEVEL", default=logging.INFO)
+LOG_FORMAT: ContextVar = ContextVar("LOG_FORMAT", default=LogFormat.default())
 
 
 DEFAULT_FORMAT = "%(levelname)s:%(name)s:%(message)s"
@@ -29,17 +26,18 @@ DEFAULT_FORMAT = "%(levelname)s:%(name)s:%(message)s"
 
 def create_logging_handler(
     log_format: LogFormat = LogFormat.color,
-    date_format: Optional[str] = None, **kwargs: Any,
-) -> logging.Handler:
+    date_format: str | None = None,
+    **kwargs: Any,
+) -> logging.Handler | None:
+    LOG_FORMAT.set(log_format)
 
-    if LOG_FORMAT is not None:
-        LOG_FORMAT.set(log_format)
-
-    if log_format == LogFormat.stream:
+    if log_format == LogFormat.disabled:
+        return None
+    elif log_format == LogFormat.stream:
         handler: logging.Handler = logging.StreamHandler()
         if date_format and date_format is not Ellipsis:
             formatter = logging.Formatter(
-                "%(asctime)s " + DEFAULT_FORMAT, datefmt=date_format,
+                "%(asctime)s " + DEFAULT_FORMAT, datefmt=date_format
             )
         else:
             formatter = logging.Formatter(DEFAULT_FORMAT)
@@ -56,13 +54,11 @@ def create_logging_handler(
         return rich_formatter(date_format=date_format, **kwargs)
     elif log_format == LogFormat.rich_tb:
         return rich_formatter(
-            date_format=date_format,
-            rich_tracebacks=True,
-            **kwargs,
+            date_format=date_format, rich_tracebacks=True, **kwargs
         )
     elif log_format == LogFormat.syslog:
         if date_format:
-            sys.stderr.write("Can not apply \"date_format\" for syslog\n")
+            sys.stderr.write('Can not apply "date_format" for syslog\n')
             sys.stderr.flush()
 
         formatter = logging.Formatter("%(message)s")
@@ -90,74 +86,81 @@ def pass_wrapper(handler: logging.Handler) -> logging.Handler:
     return handler
 
 
+@dataclass
 class UnhandledHookBase:
-    __slots__ = "logger",
-
-    LOGGER_NAME: str = "unhandled"
     logger: logging.Logger
-
-    def __init__(self) -> None:
-        self.logger = logging.getLogger().getChild(self.LOGGER_NAME)
-        self.logger.propagate = False
-
-    def set_handler(self, handler: logging.Handler) -> None:
-        self.logger.handlers.clear()
-        self.logger.handlers.append(handler)
+    logger_name: str = "unhandled"
+    logger_default_message: str = "Unhandled exception"
 
 
 class UnhandledHook(UnhandledHookBase):
-    MESSAGE: str = "Unhandled exception"
+    def __init__(self, **kwargs: Any) -> None:
+        logger = logging.getLogger().getChild(self.logger_name)
+        logger.propagate = False
+        logger.handlers.clear()
+        super().__init__(logger=logger, **kwargs)
 
+    def add_handler(self, handler: logging.Handler) -> None:
+        self.logger.handlers.append(handler)
+
+
+class UnhandledPythonHook(UnhandledHook):
     def __call__(
         self,
-        exc_type: Type[BaseException],
+        exc_type: type[BaseException],
         exc_value: BaseException,
         exc_traceback: TracebackType,
     ) -> None:
         self.logger.exception(
-            self.MESSAGE, exc_info=(exc_type, exc_value, exc_traceback),
+            self.logger_default_message,
+            exc_info=(exc_type, exc_value, exc_traceback),
         )
 
 
 def basic_config(
-    level: Union[int, str] = logging.INFO,
-    log_format: Union[str, LogFormat] = LogFormat.color,
+    level: int | str = LogLevel.info,
+    log_format: str | LogFormat = LogFormat.color,
     handler_wrapper: HandlerWrapperType = pass_wrapper,
+    handlers: Iterable[logging.Handler] = (),
     **kwargs: Any,
 ) -> None:
-
     if isinstance(level, str):
         level = LogLevel[level]
 
-    logging.basicConfig()
-    logger = logging.getLogger()
-    logger.handlers.clear()
+    logging.basicConfig(handlers=[], level=logging.NOTSET)
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
 
     if isinstance(log_format, str):
         log_format = LogFormat[log_format]
 
-    raw_handler = create_logging_handler(log_format, **kwargs)
-    unhandled_hook = UnhandledHook()
-    sys.excepthook = unhandled_hook     # type: ignore
+    unhandled_hook = UnhandledPythonHook()
+    sys.excepthook = unhandled_hook  # type: ignore
 
-    handler = handler_wrapper(raw_handler)
-
-    if LOG_LEVEL is not None:
-        LOG_LEVEL.set(level)
-
-    # noinspection PyArgumentList
-    logging.basicConfig(
-        level=int(level),
-        handlers=[handler],
+    logging_handlers = list(
+        map(
+            handler_wrapper,
+            filter(
+                None,
+                chain([create_logging_handler(log_format, **kwargs)], handlers),
+            ),
+        )
     )
 
-    unhandled_hook.set_handler(raw_handler)
+    LOG_LEVEL.set(level)
+
+    # noinspection PyArgumentList
+    logging.basicConfig(level=int(level), handlers=logging_handlers)
+
+    for handler in logging_handlers:
+        unhandled_hook.add_handler(handler)
 
 
 __all__ = (
+    "LOG_FORMAT",
+    "LOG_LEVEL",
     "LogFormat",
     "LogLevel",
     "basic_config",
-    "LOG_FORMAT",
-    "LOG_LEVEL",
+    "create_logging_handler",
 )

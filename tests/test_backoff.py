@@ -10,10 +10,7 @@ async def test_kwargs(event_loop):
     mana = 0
 
     @aiomisc.asyncbackoff(
-        attempt_timeout=0.5,
-        deadline=0.5,
-        pause=0,
-        exceptions=(Exception,),
+        attempt_timeout=0.5, deadline=0.5, pause=0, exceptions=(Exception,)
     )
     async def test():
         nonlocal mana
@@ -147,10 +144,7 @@ async def test_pause(event_loop):
     task = event_loop.create_task(test())
 
     async with condition:
-        await asyncio.wait_for(
-            condition.wait_for(lambda: mana == 2),
-            timeout=5,
-        )
+        await asyncio.wait_for(condition.wait_for(lambda: mana == 2), timeout=5)
 
     with pytest.raises(asyncio.TimeoutError):
         await task
@@ -173,10 +167,7 @@ async def test_no_waterline(event_loop):
     task = event_loop.create_task(test())
 
     async with condition:
-        await asyncio.wait_for(
-            condition.wait_for(lambda: mana >= 5),
-            timeout=2,
-        )
+        await asyncio.wait_for(condition.wait_for(lambda: mana >= 5), timeout=2)
 
     with pytest.raises(ValueError, match="^RETRY$"):
         await task
@@ -219,7 +210,7 @@ def test_values(event_loop):
         aiomisc.asyncbackoff(0, 0, -0.1)
 
     with pytest.raises(TypeError):
-        aiomisc.asyncbackoff(0, 0)(lambda x: None)
+        aiomisc.asyncbackoff(0, 0)(lambda x: None)  # type: ignore
 
 
 async def test_too_long_multiple(event_loop):
@@ -334,5 +325,23 @@ async def test_asyncretry(event_loop):
 
     with pytest.raises(ValueError, match="^RETRY$"):
         await test()
+
+    assert mana == 5
+
+
+async def test_asyncretry_class(event_loop):
+    mana = 0
+
+    class Foo:
+        @aiomisc.asyncretry(5)
+        async def test(self):
+            nonlocal mana
+            mana += 1
+            raise ValueError("RETRY")
+
+    foo = Foo()
+
+    with pytest.raises(ValueError, match="^RETRY$"):
+        await foo.test()
 
     assert mana == 5

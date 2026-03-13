@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import gc
 import os
 import threading
@@ -10,16 +11,30 @@ import pytest
 from async_timeout import timeout
 
 import aiomisc
+from aiomisc import threaded, threaded_iterable
 from aiomisc.iterator_wrapper import ChannelClosed, FromThreadChannel
-
 
 try:
     import contextvars
 except ImportError:
-    contextvars = None      # type: ignore
+    contextvars = None  # type: ignore
 
 
 pytestmark = pytest.mark.catch_loop_exceptions
+
+
+thread_pool_implementation = (
+    aiomisc.ThreadPoolExecutor,
+    concurrent.futures.ThreadPoolExecutor,
+)
+
+
+thread_pool_ids = ("aiomisc pool", "default pool")
+
+
+@pytest.fixture(params=thread_pool_implementation, ids=thread_pool_ids)
+def thread_pool_executor(request):
+    return request.param
 
 
 @pytest.fixture(params=(aiomisc.threaded, aiomisc.threaded_separate))
@@ -59,9 +74,7 @@ async def test_from_thread_channel(threaded_decorator):
     assert result == list(range(10))
 
 
-async def test_from_thread_channel_wait_before(
-    event_loop, threaded_decorator,
-):
+async def test_from_thread_channel_wait_before(event_loop, threaded_decorator):
     channel = FromThreadChannel(maxsize=1)
 
     @threaded_decorator
@@ -109,9 +122,7 @@ async def test_future_gc(thread_pool_executor, event_loop):
         cfuture = thread_pool.submit(time.sleep, 0.5)
 
         cfuture.add_done_callback(
-            lambda *_: event_loop.call_soon_threadsafe(
-                future.set_result, True,
-            ),
+            lambda *_: event_loop.call_soon_threadsafe(future.set_result, True)
         )
 
         weakref.finalize(cfuture, lambda *_: event.set())
@@ -130,13 +141,8 @@ async def test_threaded(threaded_decorator, timer):
 
     with timer(1):
         await asyncio.wait_for(
-            asyncio.gather(
-                sleep(1),
-                sleep(1),
-                sleep(1),
-                sleep(1),
-                sleep(1),
-            ), timeout=5,
+            asyncio.gather(sleep(1), sleep(1), sleep(1), sleep(1), sleep(1)),
+            timeout=5,
         )
 
 
@@ -147,9 +153,7 @@ async def test_threaded_exc(threaded_decorator):
 
     number = 90
 
-    done, _ = await asyncio.wait(
-        [worker() for _ in range(number)], timeout=1,
-    )
+    done, _ = await asyncio.wait([worker() for _ in range(number)], timeout=1)
 
     for task in done:
         with pytest.raises(Exception):
@@ -222,18 +226,10 @@ async def test_simple(threaded_decorator, event_loop, timer):
 
     async with timeout(2):
         with timer(1):
-            await asyncio.gather(
-                sleep(1),
-                sleep(1),
-                sleep(1),
-                sleep(1),
-            )
+            await asyncio.gather(sleep(1), sleep(1), sleep(1), sleep(1))
 
 
-gen_decos = (
-    aiomisc.threaded_iterable,
-    aiomisc.threaded_iterable_separate,
-)
+gen_decos = (aiomisc.threaded_iterable, aiomisc.threaded_iterable_separate)
 
 
 @pytest.fixture(params=gen_decos)
@@ -251,22 +247,20 @@ async def test_threaded_generator(event_loop, timer):
 
         result = []
         agen = arange(count)
-        async for item in agen:     # type: ignore
+        async for item in agen:
             result.append(item)
 
         assert result == list(range(count))
 
 
 async def test_threaded_generator_max_size(
-    iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     @iterator_decorator(max_size=1)
     def arange(*args):
         return (yield from range(*args))
 
     async with timeout(2):
-        arange2 = aiomisc.threaded_iterable(max_size=1)(range)
-
         count = 10
 
         result = []
@@ -276,16 +270,9 @@ async def test_threaded_generator_max_size(
 
         assert result == list(range(count))
 
-        result = []
-        agen = arange2(count)
-        async for item in agen:
-            result.append(item)
-
-        assert result == list(range(count))
-
 
 async def test_threaded_generator_exception(
-    iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     @iterator_decorator
     def arange(*args):
@@ -305,9 +292,7 @@ async def test_threaded_generator_exception(
         assert result == list(range(count))
 
 
-async def test_threaded_generator_close(
-    iterator_decorator, event_loop, timer,
-):
+async def test_threaded_generator_close(iterator_decorator, event_loop, timer):
     stopped = False
 
     @iterator_decorator(max_size=2)
@@ -324,7 +309,7 @@ async def test_threaded_generator_close(
         counter = 0
 
         async with noise() as gen:
-            async for _ in gen:     # NOQA
+            async for _ in gen:
                 counter += 1
                 if counter > 9:
                     break
@@ -338,7 +323,7 @@ async def test_threaded_generator_close(
 
 
 async def test_threaded_generator_close_cm(
-    iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     stopped = threading.Event()
 
@@ -355,7 +340,7 @@ async def test_threaded_generator_close_cm(
     async with timeout(2):
         async with noise() as gen:
             counter = 0
-            async for _ in gen:     # NOQA
+            async for _ in gen:
                 counter += 1
                 if counter > 9:
                     break
@@ -365,7 +350,7 @@ async def test_threaded_generator_close_cm(
 
 
 async def test_threaded_generator_close_break(
-    iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     stopped = threading.Event()
 
@@ -381,7 +366,7 @@ async def test_threaded_generator_close_break(
 
     async with timeout(2):
         counter = 0
-        async for _ in noise():     # NOQA
+        async for _ in noise():
             counter += 1
             if counter > 9:
                 break
@@ -391,7 +376,7 @@ async def test_threaded_generator_close_break(
 
 
 async def test_threaded_generator_non_generator_raises(
-        iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     @iterator_decorator()
     def errored():
@@ -399,12 +384,12 @@ async def test_threaded_generator_non_generator_raises(
 
     async with timeout(2):
         with pytest.raises(RuntimeError):
-            async for _ in errored():       # NOQA
+            async for _ in errored():
                 pass
 
 
 async def test_threaded_generator_func_raises(
-    iterator_decorator, event_loop, timer,
+    iterator_decorator, event_loop, timer
 ):
     @iterator_decorator
     def errored(val):
@@ -415,13 +400,13 @@ async def test_threaded_generator_func_raises(
 
     async with timeout(2):
         with pytest.raises(RuntimeError):
-            async for _ in errored(True):    # NOQA
+            async for _ in errored(True):
                 pass
 
 
 @pytest.mark.skipif(contextvars is None, reason="no contextvars support")
 async def test_context_vars(threaded_decorator, event_loop):
-    ctx_var = contextvars.ContextVar("test")    # type: ignore
+    ctx_var = contextvars.ContextVar("test")  # type: ignore
 
     @threaded_decorator
     def test(arg):
@@ -521,3 +506,157 @@ async def test_wait_coroutine_sync_exc_noloop(threaded_decorator, event_loop):
         await test()
 
     assert result == 1
+
+
+def test_task_channel():
+    channel = aiomisc.thread_pool.TaskChannel()
+    events = []
+
+    def consumer(event: threading.Event):
+        try:
+            while True:
+                channel.get()(no_return=True)
+        except aiomisc.thread_pool.TaskChannelCloseException:
+            event.set()
+
+    for _ in range(500):
+        event = threading.Event()
+        threading.Thread(target=consumer, args=(event,)).start()
+        events.append(event)
+
+    loop = asyncio.get_event_loop()
+    future = loop.create_future()
+    item = aiomisc.thread_pool.WorkItem(
+        func=lambda x: None,
+        loop=loop,
+        future=future,
+        statistic=aiomisc.thread_pool.ThreadPoolStatistic(),
+    )
+
+    for _ in range(10000):
+        channel.put_nowait(item)
+
+    channel.close()
+
+    for event in events:
+        event.wait(timeout=1)
+
+
+async def test_threaded_class_func():
+    @threaded
+    def foo():
+        return 42
+
+    assert foo.sync_call() == 42
+    assert await foo() == 42
+    assert await foo.async_call() == 42
+
+
+async def test_threaded_class_method():
+    class TestClass:
+        @threaded
+        def foo(self):
+            return 42
+
+    instance = TestClass()
+    assert instance.foo.sync_call() == 42
+    assert await instance.foo() == 42
+    assert await instance.foo.async_call() == 42
+
+
+async def test_threaded_class_staticmethod():
+    class TestClass:
+        @threaded
+        @staticmethod
+        def foo():
+            return 42
+
+    instance = TestClass()
+    assert instance.foo.sync_call() == 42
+    assert await instance.foo() == 42
+    assert await instance.foo.async_call() == 42
+
+
+async def test_threaded_class_classmethod():
+    class TestClass:
+        @threaded
+        @classmethod
+        def foo(cls):
+            return 42
+
+    instance = TestClass()
+    assert instance.foo.sync_call() == 42
+    assert await instance.foo() == 42
+    assert await instance.foo.async_call() == 42
+
+
+async def test_threaded_iterator_class_func():
+    @threaded_iterable
+    def foo():
+        yield 42
+
+    assert list(foo.sync_call()) == [42]
+    assert [x async for x in foo()] == [42]
+    assert [x async for x in foo.async_call()] == [42]
+
+
+async def test_threaded_iterator_class_method():
+    class TestClass:
+        @threaded_iterable
+        def foo(self):
+            yield 42
+
+    instance = TestClass()
+    assert list(instance.foo.sync_call()) == [42]
+    assert [x async for x in instance.foo()] == [42]
+    assert [x async for x in instance.foo.async_call()] == [42]
+
+
+async def test_threaded_iterator_class_staticmethod():
+    class TestClass:
+        @threaded_iterable
+        @staticmethod
+        def foo():
+            yield 42
+
+    instance = TestClass()
+    assert list(instance.foo.sync_call()) == [42]
+    assert [x async for x in instance.foo()] == [42]
+    assert [x async for x in instance.foo.async_call()] == [42]
+
+
+async def test_threaded_iterator_class_classmethod():
+    class TestClass:
+        @threaded_iterable
+        @classmethod
+        def foo(cls):
+            yield 42
+
+    instance = TestClass()
+    assert list(instance.foo.sync_call()) == [42]
+    assert [x async for x in instance.foo()] == [42]
+    assert [x async for x in instance.foo.async_call()] == [42]
+
+
+async def test_threaded_generator_starts_on_iteration():
+    """Test that the generator starts running when iteration begins."""
+    generator_started = threading.Event()
+
+    @aiomisc.threaded_iterable(max_size=2)
+    def gen():
+        generator_started.set()
+        yield 1
+        yield 2
+        yield 3
+
+    async with timeout(2):
+        async with gen() as iterator:
+            # Generator should not have started yet (lazy start)
+            assert not generator_started.is_set()
+
+            # Start iteration - this triggers the generator
+            result = [x async for x in iterator]
+
+            # Now the generator should have started and completed
+            assert generator_started.is_set()
+            assert result == [1, 2, 3]

@@ -1,87 +1,100 @@
 import asyncio
-import atexit
-import logging
 import logging.handlers
-import time
+import threading
 import traceback
+from collections.abc import Callable, Iterable
 from contextlib import suppress
-from functools import partial
+from queue import Empty, Queue
 from socket import socket
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
-from weakref import finalize
+from typing import Any, Union
 
 import aiomisc_log
 from aiomisc_log.enum import LogFormat, LogLevel
 
-from .thread_pool import run_in_new_thread
+from .counters import Statistic
 
 
-def _thread_flusher(
-    handler: logging.handlers.MemoryHandler,
-    flush_interval: Union[float, int],
-    loop: asyncio.AbstractEventLoop,
-) -> None:
-    def has_no_target() -> bool:
-        return True
+class ThreadedHandlerStatistic(Statistic):
+    threads: int
+    records: int
+    errors: int
+    flushes: int
 
-    def has_target() -> bool:
-        return bool(handler.target)
 
-    is_target = has_no_target
+class ThreadedHandler(logging.Handler):
+    def __init__(
+        self,
+        target: logging.Handler,
+        flush_interval: float = 0.1,
+        buffered: bool = True,
+        queue_size: int = 0,
+    ):
+        super().__init__()
+        self._buffered = buffered
+        self._target = target
+        self._flush_interval = flush_interval
+        self._flush_event = threading.Event()
+        self._queue: Queue[logging.LogRecord | None] = Queue(queue_size)
+        self._close_event = threading.Event()
+        self._thread = threading.Thread(target=self._in_thread, daemon=True)
+        self._statistic = ThreadedHandlerStatistic()
 
-    if isinstance(handler, logging.handlers.MemoryHandler):
-        is_target = has_target
+    def start(self) -> None:
+        self._statistic.threads += 1
+        self._thread.start()
 
-    while not loop.is_closed() and is_target():
-        with suppress(Exception):
-            if handler.buffer:
-                handler.flush()
+    def close(self) -> None:
+        self._queue.put(None)
+        del self._queue
+        self.flush()
+        self._close_event.set()
+        super().close()
 
-        time.sleep(flush_interval)
+    def flush(self) -> None:
+        self._statistic.flushes += 1
+        self._flush_event.set()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if self._buffered:
+            self._queue.put_nowait(record)
+        else:
+            self._queue.put(record)
+        self._statistic.records += 1
+
+    def _in_thread(self) -> None:
+        queue = self._queue
+        while not self._close_event.is_set():
+            self._flush_event.wait(self._flush_interval)
+            try:
+                self.acquire()
+                while True:
+                    record = queue.get(timeout=self._flush_interval)
+                    if record is None:
+                        return
+                    with suppress(Exception):
+                        self._target.handle(record)
+            except Empty:
+                pass
+            finally:
+                self.release()
+        self._statistic.threads -= 1
 
 
 def suppressor(
     callback: Callable[..., None],
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+    exceptions: tuple[type[BaseException], ...] = (Exception,),
 ) -> Callable[..., None]:
     def wrapper() -> None:
         with suppress(*exceptions):
             callback()
+
     return wrapper
 
 
-def wrap_logging_handler(
-    handler: logging.Handler,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-    buffer_size: int = 1024,
-    flush_interval: Union[float, int] = 0.1,
-) -> logging.Handler:
-    buffered_handler = logging.handlers.MemoryHandler(
-        buffer_size,
-        target=handler,
-        flushLevel=logging.CRITICAL,
-    )
-
-    run_in_new_thread(
-        _thread_flusher, args=(
-            buffered_handler, flush_interval, loop,
-        ), no_return=True, statistic_name="logger",
-    )
-
-    at_exit_flusher = suppressor(handler.flush)
-    atexit.register(at_exit_flusher)
-    finalize(buffered_handler, partial(atexit.unregister, at_exit_flusher))
-
-    return buffered_handler
-
-
-class UnhandledLoopHook(aiomisc_log.UnhandledHookBase):
-    LOGGER_NAME = "asyncio.unhandled"
-
+class UnhandledLoopHook(aiomisc_log.UnhandledHook):
     @staticmethod
     def _fill_transport_extra(
-        transport: Optional[asyncio.Transport],
-        extra: Dict[str, Any],
+        transport: asyncio.Transport | None, extra: dict[str, Any]
     ) -> None:
         if transport is None:
             return
@@ -89,28 +102,32 @@ class UnhandledLoopHook(aiomisc_log.UnhandledHookBase):
         extra["transport"] = repr(transport)
 
         for key in (
-            "peername", "sockname", "compression",
-            "cipher", "peercert", "pipe", "subprocess",
+            "peername",
+            "sockname",
+            "compression",
+            "cipher",
+            "peercert",
+            "pipe",
+            "subprocess",
         ):
             value = transport.get_extra_info(key)
             if value:
                 extra[f"transport_{key}"] = value
 
     def __call__(
-        self, loop: asyncio.AbstractEventLoop,
-        context: Dict[str, Any],
+        self, loop: asyncio.AbstractEventLoop, context: dict[str, Any]
     ) -> None:
         context = dict(context)
         message: str = context.pop("message", "unhandled loop exception")
-        exception: Optional[BaseException] = context.pop("exception", None)
-        future: Optional[asyncio.Future] = context.pop("future", None)
-        task: Optional[asyncio.Task] = context.pop("task", None)
-        handle: Optional[asyncio.Handle] = context.pop("handle", None)
-        protocol: Optional[asyncio.Protocol] = context.pop("protocol", None)
-        transport: Optional[asyncio.Transport] = context.pop("transport", None)
-        sock: Optional[socket] = context.pop("socket", None)
-        source_traceback: List[traceback.FrameSummary] = context.pop(
-            "source_traceback", None,
+        exception: BaseException | None = context.pop("exception", None)
+        future: asyncio.Future | None = context.pop("future", None)
+        task: asyncio.Task | None = context.pop("task", None)
+        handle: asyncio.Handle | None = context.pop("handle", None)
+        protocol: asyncio.Protocol | None = context.pop("protocol", None)
+        transport: asyncio.Transport | None = context.pop("transport", None)
+        sock: socket | None = context.pop("socket", None)
+        source_tb: list[traceback.FrameSummary] = (
+            context.pop("source_traceback", None) or []
         )
 
         if exception is None:
@@ -129,49 +146,45 @@ class UnhandledLoopHook(aiomisc_log.UnhandledHookBase):
 
         self._fill_transport_extra(transport, extra)
         self.logger.exception(message, exc_info=exception, extra=extra)
-        if source_traceback:
-            self.logger.error(
-                "".join(traceback.format_list(source_traceback)),
-            )
+        if source_tb:
+            self.logger.error("".join(traceback.format_list(source_tb)))
 
 
 def basic_config(
-    level: Union[int, str] = LogLevel.default(),
-    log_format: Union[str, LogFormat] = LogFormat.default(),
-    buffered: bool = True, buffer_size: int = 1024,
-    flush_interval: Union[int, float] = 0.2,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
+    level: int | str = LogLevel.default(),
+    log_format: str | LogFormat = LogFormat.default(),
+    buffered: bool = True,
+    buffer_size: int = 0,
+    flush_interval: int | float = 0.2,
+    loop: asyncio.AbstractEventLoop | None = None,
+    handlers: Iterable[logging.Handler] = (),
     **kwargs: Any,
 ) -> None:
-    loop = loop or asyncio.get_event_loop()
-    unhandled_hook = UnhandledLoopHook()
+    unhandled_hook = UnhandledLoopHook(logger_name="asyncio.unhandled")
 
-    def wrap_handler(handler: logging.Handler) -> logging.Handler:
-        nonlocal buffer_size, buffered, loop, unhandled_hook
+    if loop is None:
+        loop = asyncio.get_event_loop()
 
-        unhandled_hook.set_handler(handler)
-
-        if buffered:
-            return wrap_logging_handler(
-                handler=handler,
-                buffer_size=buffer_size,
-                flush_interval=flush_interval,
-                loop=loop,
-            )
-        return handler
-
-    aiomisc_log.basic_config(
-        level=level,
-        log_format=log_format,
-        handler_wrapper=wrap_handler,
-        **kwargs,
-    )
-
+    forever_task = asyncio.gather(loop.create_future(), return_exceptions=True)
     loop.set_exception_handler(unhandled_hook)
 
+    log_handlers = []
 
-__all__ = (
-    "LogFormat",
-    "LogLevel",
-    "basic_config",
-)
+    for user_handler in handlers:
+        handler = ThreadedHandler(
+            buffered=buffered,
+            flush_interval=flush_interval,
+            queue_size=buffer_size,
+            target=user_handler,
+        )
+        unhandled_hook.add_handler(handler)
+        forever_task.add_done_callback(lambda _: handler.close())
+        log_handlers.append(handler)
+        handler.start()
+
+    aiomisc_log.basic_config(
+        level=level, log_format=log_format, handlers=log_handlers, **kwargs
+    )
+
+
+__all__ = ("LogFormat", "LogLevel", "ThreadedHandler", "basic_config")

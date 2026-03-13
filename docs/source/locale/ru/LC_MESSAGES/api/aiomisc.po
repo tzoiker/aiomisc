@@ -6,14 +6,14 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aiomisc 16.1.16\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-24 13:24+0300\n"
+"POT-Creation-Date: 2026-02-09 00:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Last-Translator: Ivan Sitkin <alvinera@yandex.ru>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.12.1\n"
+"Generated-By: Babel 2.17.0\n"
 
 #: ../../source/api/aiomisc.rst:2
 msgid "``aiomisc`` module"
@@ -22,22 +22,6 @@ msgstr "Модуль ``aiomisc``"
 #: ../../source/api/aiomisc.rst:5
 msgid "``aiomisc.aggregate`` module"
 msgstr "Модуль ``aiomisc.aggregate``"
-
-#: aiomisc.aggregate.Arg:1 of
-msgid "Create new instance of Arg(value, future)"
-msgstr ""
-
-#: ../../docstring aiomisc.aggregate.Arg.future:1
-#: aiomisc.counters.StatisticResult.name:1
-#: aiomisc.thread_pool.WorkItemBase.args:1 of
-msgid "Alias for field number 1"
-msgstr ""
-
-#: ../../docstring aiomisc.aggregate.Arg.value:1
-#: aiomisc.counters.StatisticResult.kind:1
-#: aiomisc.thread_pool.WorkItemBase.func:1 of
-msgid "Alias for field number 0"
-msgstr ""
 
 #: aiomisc.aggregate.aggregate:1 of
 msgid ""
@@ -63,11 +47,7 @@ msgid ""
 "``aggregate_async``."
 msgstr ""
 
-#: aiomisc.aggregate.aggregate aiomisc.backoff.asyncbackoff
-#: aiomisc.backoff.asyncretry aiomisc.circuit_breaker.CircuitBreaker
-#: aiomisc.entrypoint.Entrypoint aiomisc.utils.SelectAwaitable
-#: aiomisc.utils.bind_socket aiomisc.utils.cancel_tasks
-#: aiomisc.utils.create_default_event_loop of
+#: ../../source/api/aiomisc.rst
 msgid "Parameters"
 msgstr ""
 
@@ -83,8 +63,7 @@ msgid ""
 "``None``."
 msgstr ""
 
-#: aiomisc.aggregate.aggregate aiomisc.aggregate.aggregate_async
-#: aiomisc.utils.bind_socket of
+#: ../../source/api/aiomisc.rst
 msgid "Returns"
 msgstr ""
 
@@ -98,7 +77,7 @@ msgid ""
 "future, then, ``ResultNotSetError`` exception is set."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:12
+#: ../../source/api/aiomisc.rst:13
 msgid "``aiomisc.backoff`` module"
 msgstr "Модуль ``aiomisc.backoff``"
 
@@ -131,7 +110,7 @@ msgid "is time gap between execution attempts."
 msgstr ""
 
 #: aiomisc.backoff.asyncbackoff:12 of
-msgid "retrying when this exceptions was raised."
+msgid "retrying when these exceptions were raised."
 msgstr ""
 
 #: aiomisc.backoff.asyncbackoff:13 aiomisc.backoff.asyncretry:8 of
@@ -158,7 +137,7 @@ msgstr ""
 msgid "is maximum count of execution attempts (>= 1 or ``None`` means infinity)."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:19
+#: ../../source/api/aiomisc.rst:21
 msgid "``aiomisc.circuit_breaker`` module"
 msgstr "Модуль ``aiomisc.circuit_breaker``"
 
@@ -223,7 +202,7 @@ msgstr ""
 msgid "minimum time in passing state (seconds)"
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:26
+#: ../../source/api/aiomisc.rst:29
 msgid "``aiomisc.compat`` module"
 msgstr "Модуль ``aiomisc.compat``"
 
@@ -232,30 +211,57 @@ msgid "Parameter specification variable."
 msgstr ""
 
 #: of typing.ParamSpec:3
-msgid "Usage::"
-msgstr ""
-
-#: of typing.ParamSpec:5
-msgid "P = ParamSpec('P')"
+msgid ""
+"The preferred way to construct a parameter specification is via the "
+"dedicated syntax for generic functions, classes, and type aliases, where "
+"the use of '**' creates a parameter specification::"
 msgstr ""
 
 #: of typing.ParamSpec:7
+msgid "type IntFunc[**P] = Callable[P, int]"
+msgstr ""
+
+#: of typing.ParamSpec:9
 msgid ""
-"Parameter specification variables exist primarily for the benefit of "
-"static type checkers.  They are used to forward the parameter types of "
-"one callable to another callable, a pattern commonly found in higher "
-"order functions and decorators.  They are only valid when used in "
-"``Concatenate``, or as the first argument to ``Callable``, or as "
-"parameters for user-defined Generics.  See class Generic for more "
-"information on generic types.  An example for annotating a decorator::"
+"The following syntax creates a parameter specification that defaults to a"
+" callable accepting two positional-only arguments of types int and str:"
+msgstr ""
+
+#: of typing.ParamSpec:13
+msgid "type IntFuncDefault[**P = (int, str)] = Callable[P, int]"
 msgstr ""
 
 #: of typing.ParamSpec:15
 msgid ""
-"T = TypeVar('T')\n"
+"For compatibility with Python 3.11 and earlier, ParamSpec objects can "
+"also be created as follows::"
+msgstr ""
+
+#: of typing.ParamSpec:18
+msgid ""
 "P = ParamSpec('P')\n"
-"\n"
-"def add_logging(f: Callable[P, T]) -> Callable[P, T]:\n"
+"DefaultP = ParamSpec('DefaultP', default=(int, str))"
+msgstr ""
+
+#: of typing.ParamSpec:21
+msgid ""
+"Parameter specification variables exist primarily for the benefit of "
+"static type checkers.  They are used to forward the parameter types of "
+"one callable to another callable, a pattern commonly found in higher-"
+"order functions and decorators.  They are only valid when used in "
+"``Concatenate``, or as the first argument to ``Callable``, or as "
+"parameters for user-defined Generics. See class Generic for more "
+"information on generic types."
+msgstr ""
+
+#: of typing.ParamSpec:29
+msgid "An example for annotating a decorator::"
+msgstr ""
+
+#: of typing.ParamSpec:31
+#, python-brace-format
+msgid ""
+"def add_logging[**P, T](f: Callable[P, T]) -> Callable[P, T]:\n"
 "    '''A type-safe decorator to add logging to a function.'''\n"
 "    def inner(*args: P.args, **kwargs: P.kwargs) -> T:\n"
 "        logging.info(f'{f.__name__} was called')\n"
@@ -268,28 +274,29 @@ msgid ""
 "    return x + y"
 msgstr ""
 
-#: of typing.ParamSpec:30
-msgid ""
-"Parameter specification variables defined with covariant=True or "
-"contravariant=True can be used to declare covariant or contravariant "
-"generic types.  These keyword arguments are valid, but their actual "
-"semantics are yet to be decided.  See PEP 612 for details."
+#: of typing.ParamSpec:43
+msgid "Parameter specification variables can be introspected. e.g.::"
 msgstr ""
 
-#: of typing.ParamSpec:35
-msgid "Parameter specification variables can be introspected. e.g.:"
+#: of typing.ParamSpec:45
+msgid ""
+">>> P = ParamSpec(\"P\")\n"
+">>> P.__name__\n"
+"'P'"
 msgstr ""
 
-#: of typing.ParamSpec:37
+#: of typing.ParamSpec:49
 msgid ""
-"P.__name__ == 'P' P.__bound__ == None P.__covariant__ == False "
-"P.__contravariant__ == False"
+"Note that only parameter specification variables defined in the global "
+"scope can be pickled."
 msgstr ""
 
-#: of typing.ParamSpec:42
-msgid ""
-"Note that only parameter specification variables defined in global scope "
-"can be pickled."
+#: aiomisc.compat.ParamSpec.args:1 of
+msgid "Represents positional arguments."
+msgstr ""
+
+#: aiomisc.compat.ParamSpec.kwargs:1 of
+msgid "Represents keyword arguments."
 msgstr ""
 
 #: of typing.Protocol:1
@@ -310,10 +317,14 @@ msgstr ""
 #: of typing.Protocol:9
 msgid ""
 "Such classes are primarily used with static type checkers that recognize "
-"structural subtyping (static duck-typing), for example::"
+"structural subtyping (static duck-typing)."
 msgstr ""
 
-#: of typing.Protocol:12
+#: of typing.Protocol:12 typing.final:6
+msgid "For example::"
+msgstr ""
+
+#: of typing.Protocol:14
 msgid ""
 "class C:\n"
 "    def meth(self) -> int:\n"
@@ -325,7 +336,7 @@ msgid ""
 "func(C())  # Passes static type check"
 msgstr ""
 
-#: of typing.Protocol:21
+#: of typing.Protocol:23
 msgid ""
 "See PEP 544 for details. Protocol classes decorated with "
 "@typing.runtime_checkable act as simple-minded runtime protocols that "
@@ -333,86 +344,121 @@ msgid ""
 "signatures. Protocol classes can be generic, they are defined as::"
 msgstr ""
 
-#: of typing.Protocol:26
+#: of typing.Protocol:28
 msgid ""
-"class GenProto(Protocol[T]):\n"
+"class GenProto[T](Protocol):\n"
 "    def meth(self) -> T:\n"
 "        ..."
 msgstr ""
 
+#: asyncio.runners.Runner:1 of
+msgid "A context manager that controls event loop life cycle."
+msgstr ""
+
+#: asyncio.runners.Runner:3 of
+msgid ""
+"The context manager always creates a new event loop, allows to run async "
+"functions inside it, and properly finalizes the loop at the context "
+"manager exit."
+msgstr ""
+
+#: asyncio.runners.Runner:7 of
+msgid ""
+"If debug is True, the event loop will be run in debug mode. If "
+"loop_factory is passed, it is used for new event loop creation."
+msgstr ""
+
+#: asyncio.runners.Runner:10 of
+msgid "asyncio.run(main(), debug=True)"
+msgstr ""
+
+#: asyncio.runners.Runner:12 of
+msgid "is a shortcut for"
+msgstr ""
+
+#: asyncio.runners.Runner:14 of
+msgid "with asyncio.Runner(debug=True) as runner:"
+msgstr ""
+
+#: asyncio.runners.Runner:15 of
+msgid "runner.run(main())"
+msgstr ""
+
+#: asyncio.runners.Runner:17 of
+msgid "The run() method can be called multiple times within the runner's context."
+msgstr ""
+
+#: asyncio.runners.Runner:19 of
+msgid ""
+"This can be useful for interactive console (e.g. IPython), unittest "
+"runners, console tools, -- everywhere when async code is called from "
+"existing sync framework and where the preferred single asyncio.run() call"
+" doesn't work."
+msgstr ""
+
+#: asyncio.runners.Runner.close:1 of
+msgid "Shutdown and close event loop."
+msgstr ""
+
+#: asyncio.runners.Runner.get_loop:1 of
+msgid "Return embedded event loop."
+msgstr ""
+
+#: asyncio.runners.Runner.run:1 of
+msgid "Run code in the embedded event loop."
+msgstr ""
+
+#: aiomisc.compat.default_loop_factory:1 of
+msgid "Default loop factory - uses uvloop if available, otherwise asyncio."
+msgstr ""
+
 #: of typing.final:1
-msgid "A decorator to indicate final methods and final classes."
+msgid "Decorator to indicate final methods and final classes."
 msgstr ""
 
 #: of typing.final:3
 msgid ""
 "Use this decorator to indicate to type checkers that the decorated method"
-" cannot be overridden, and decorated class cannot be subclassed. For "
-"example:"
-msgstr ""
-
-#: of typing.final:9
-msgid "class Base:"
+" cannot be overridden, and decorated class cannot be subclassed."
 msgstr ""
 
 #: of typing.final:8
-msgid "@final def done(self) -> None:"
-msgstr ""
-
-#: of typing.final:10 typing.final:13 typing.final:17 typing.final:19
-msgid "..."
-msgstr ""
-
-#: of typing.final:13
-msgid "class Sub(Base):"
-msgstr ""
-
-#: of typing.final:13
-msgid "def done(self) -> None:  # Error reported by type checker"
-msgstr ""
-
-#: of typing.final:15
-msgid "@final class Leaf:"
-msgstr ""
-
-#: of typing.final:19
-msgid "class Other(Leaf):  # Error reported by type checker"
-msgstr ""
-
-#: of typing.final:21
 msgid ""
-"There is no runtime checking of these properties. The decorator sets the "
-"``__final__`` attribute to ``True`` on the decorated object to allow "
-"runtime introspection."
+"class Base:\n"
+"    @final\n"
+"    def done(self) -> None:\n"
+"        ...\n"
+"class Sub(Base):\n"
+"    def done(self) -> None:  # Error reported by type checker\n"
+"        ...\n"
+"\n"
+"@final\n"
+"class Leaf:\n"
+"    ...\n"
+"class Other(Leaf):  # Error reported by type checker\n"
+"    ..."
+msgstr ""
+
+#: of typing.final:22
+msgid ""
+"There is no runtime checking of these properties. The decorator attempts "
+"to set the ``__final__`` attribute to ``True`` on the decorated object to"
+" allow runtime introspection."
 msgstr ""
 
 #: of time.time_ns:1
 msgid "Return the current time in nanoseconds since the Epoch."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:33
+#: ../../source/api/aiomisc.rst:37
 msgid "``aiomisc.context`` module"
 msgstr "Модуль ``aiomisc.context``"
 
-#: ../../source/api/aiomisc.rst:40
+#: ../../source/api/aiomisc.rst:45
 msgid "``aiomisc.counters`` module"
 msgstr "Модуль ``aiomisc.counters``"
 
-#: aiomisc.counters.StatisticResult:1 of
-msgid "Create new instance of StatisticResult(kind, name, metric, value)"
-msgstr ""
-
-#: ../../docstring aiomisc.counters.StatisticResult.metric:1
-#: aiomisc.thread_pool.WorkItemBase.kwargs:1 of
-msgid "Alias for field number 2"
-msgstr ""
-
-#: ../../docstring aiomisc.counters.StatisticResult.value:1
-#: aiomisc.thread_pool.WorkItemBase.future:1 of
-msgid "Alias for field number 3"
-msgstr ""
-
-#: ../../source/api/aiomisc.rst:47
+#: ../../source/api/aiomisc.rst:53
 msgid "``aiomisc.cron`` module"
 msgstr "Модуль ``aiomisc.cron``"
 
@@ -422,7 +468,7 @@ msgid ""
 "call will be skipping and warning will be logged."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:54
+#: ../../source/api/aiomisc.rst:61
 msgid "``aiomisc.entrypoint`` module"
 msgstr "Модуль ``aiomisc.entrypoint``"
 
@@ -474,19 +520,58 @@ msgstr ""
 msgid "Timeout in seconds for graceful shutdown"
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:61
+#: ../../source/api/aiomisc.rst:69
 msgid "``aiomisc.io`` module"
 msgstr "Модуль ``aiomisc.io``"
 
-#: ../../source/api/aiomisc.rst:68
+#: ../../source/api/aiomisc.rst:77
 msgid "``aiomisc.iterator_wrapper`` module"
 msgstr "Модуль ``aiomisc.iterator_wrapper``"
 
-#: ../../source/api/aiomisc.rst:75
+#: aiomisc.thread_pool.IteratorWrapperSeparate:1 of
+msgid "IteratorWrapper that runs in a separate thread with statistics."
+msgstr ""
+
+#: ../../source/api/aiomisc.rst:85
 msgid "``aiomisc.log`` module"
 msgstr "Модуль ``aiomisc.log``"
 
-#: ../../source/api/aiomisc.rst:82
+#: aiomisc.log.ThreadedHandler:1 of
+msgid ""
+"Initializes the instance - basically setting the formatter to None and "
+"the filter list to empty."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.close:1 of
+msgid "Tidy up any resources used by the handler."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.close:3 of
+msgid ""
+"This version removes the handler from an internal map of handlers, "
+"_handlers, which is used for handler lookup by name. Subclasses should "
+"ensure that this gets called from overridden close() methods."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.emit:1 of
+msgid "Do whatever it takes to actually log the specified logging record."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.emit:3 of
+msgid ""
+"This version is intended to be implemented by subclasses and so raises a "
+"NotImplementedError."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.flush:1 of
+msgid "Ensure all logging output has been flushed."
+msgstr ""
+
+#: aiomisc.log.ThreadedHandler.flush:3 of
+msgid "This version does nothing and is intended to be implemented by subclasses."
+msgstr ""
+
+#: ../../source/api/aiomisc.rst:93
 msgid "``aiomisc.periodic`` module"
 msgstr "Модуль ``aiomisc.periodic``"
 
@@ -496,57 +581,76 @@ msgid ""
 " call would be skipped and warning would be logged."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:89
+#: ../../source/api/aiomisc.rst:101
 msgid "``aiomisc.plugins`` module"
 msgstr "Модуль ``aiomisc.plugins``"
 
-#: ../../source/api/aiomisc.rst:96
+#: ../../source/api/aiomisc.rst:109
 msgid "``aiomisc.pool`` module"
 msgstr "Модуль ``aiomisc.pool``"
 
-#: ../../source/api/aiomisc.rst:103
+#: ../../source/api/aiomisc.rst:117
 msgid "``aiomisc.process_pool`` module"
 msgstr "Модуль ``aiomisc.process_pool``"
 
 #: aiomisc.process_pool.ProcessPoolExecutor:1 of
-msgid "Initializes a new ProcessPoolExecutor instance."
+msgid "Process pool executor with statistic"
 msgstr ""
 
-#: aiomisc.process_pool.ProcessPoolExecutor:18
-#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:11 of
-msgid "Args:"
-msgstr ""
-
-#: aiomisc.process_pool.ProcessPoolExecutor:5 of
-msgid "max_workers: The maximum number of processes that can be used to"
+#: aiomisc.process_pool.ProcessPoolExecutor:3 of
+msgid "Usage:"
 msgstr ""
 
 #: aiomisc.process_pool.ProcessPoolExecutor:5 of
 msgid ""
+"from time import sleep\n"
+"from aiomisc import ProcessPoolExecutor\n"
+"\n"
+"# NOTE: blocking function must be defined at the top level\n"
+"# of the module to be able to be pickled and sent to the\n"
+"# child processes.\n"
+"def blocking_fn():\n"
+"    sleep(1)\n"
+"    return 42\n"
+"\n"
+"async def main():\n"
+"    executor = ProcessPoolExecutor()\n"
+"    the_answer = await executor.submit(blocking_fn)\n"
+"    print(\"The answer is:\", the_answer)\n"
+"\n"
+"asyncio.run(main())"
+msgstr ""
+
+#: aiomisc.process_pool.ProcessPoolExecutor:24 of
+msgid "Initializes a new ProcessPoolExecutor instance."
+msgstr ""
+
+#: aiomisc.process_pool.ProcessPoolExecutor:26 of
+msgid ""
+"``max_workers``: The maximum number of processes that can be used to "
 "execute the given calls. If None or not given then as many worker "
 "processes will be created as the machine has processors."
 msgstr ""
 
-#: aiomisc.process_pool.ProcessPoolExecutor:8 of
-msgid "mp_context: A multiprocessing context to launch the workers. This"
-msgstr ""
-
-#: aiomisc.process_pool.ProcessPoolExecutor:8 of
+#: aiomisc.process_pool.ProcessPoolExecutor:31 of
 msgid ""
+"``mp_context``: A multiprocessing context to launch the workers. This "
 "object should provide SimpleQueue, Queue and Process. Useful to allow "
 "specific multiprocessing start methods."
 msgstr ""
 
-#: aiomisc.process_pool.ProcessPoolExecutor:10 of
-msgid ""
-"initializer: A callable used to initialize worker processes. initargs: A "
-"tuple of arguments to pass to the initializer. max_tasks_per_child: The "
-"maximum number of tasks a worker process"
+#: aiomisc.process_pool.ProcessPoolExecutor:35 of
+msgid "``initializer``: A callable used to initialize worker processes."
 msgstr ""
 
-#: aiomisc.process_pool.ProcessPoolExecutor:13 of
+#: aiomisc.process_pool.ProcessPoolExecutor:37 of
+msgid "``initargs``: A tuple of arguments to pass to the initializer."
+msgstr ""
+
+#: aiomisc.process_pool.ProcessPoolExecutor:39 of
 msgid ""
-"can complete before it will exit and be replaced with a fresh worker "
+"``max_tasks_per_child``: The maximum number of tasks a worker process can"
+" complete before it will exit and be replaced with a fresh worker "
 "process. The default of None means worker process will live as long as "
 "the executor. Requires a non-'fork' mp_context start method. When given, "
 "we default to using 'spawn' if no mp_context is supplied."
@@ -557,7 +661,7 @@ msgstr ""
 msgid "Submit blocking function to the pool"
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:110
+#: ../../source/api/aiomisc.rst:125
 msgid "``aiomisc.recurring`` module"
 msgstr "Модуль ``aiomisc.recurring``"
 
@@ -569,13 +673,52 @@ msgstr ""
 msgid "Strategy function might raise this exception as way to  stop recurring"
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:117
+#: ../../source/api/aiomisc.rst:133
 msgid "``aiomisc.signal`` module"
 msgstr "Модуль ``aiomisc.signal``"
 
-#: ../../source/api/aiomisc.rst:124
+#: ../../source/api/aiomisc.rst:141
 msgid "``aiomisc.thread_pool`` module"
 msgstr "Модуль ``aiomisc.thread_pool``"
+
+#: aiomisc.thread_pool.TaskChannel.get:1 of
+msgid "Remove and return an item from the queue."
+msgstr ""
+
+#: aiomisc.thread_pool.TaskChannel.get:3 of
+msgid ""
+"If optional args 'block' is true and 'timeout' is None (the default), "
+"block if necessary until an item is available. If 'timeout' is a non-"
+"negative number, it blocks at most 'timeout' seconds and raises the Empty"
+" exception if no item was available within that time. Otherwise ('block' "
+"is false), return an item if one is immediately available, else raise the"
+" Empty exception ('timeout' is ignored in that case)."
+msgstr ""
+
+#: aiomisc.thread_pool.ThreadPoolExecutor:1 of
+msgid "Initializes a new ThreadPoolExecutor instance."
+msgstr ""
+
+#: aiomisc.thread_pool.ThreadPoolExecutor:3
+#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:6 of
+msgid "Args:"
+msgstr ""
+
+#: aiomisc.thread_pool.ThreadPoolExecutor:4 of
+msgid "max_workers: The maximum number of threads that can be used to"
+msgstr ""
+
+#: aiomisc.thread_pool.ThreadPoolExecutor:5 of
+msgid "execute the given calls."
+msgstr ""
+
+#: aiomisc.thread_pool.ThreadPoolExecutor:6 of
+msgid ""
+"thread_name_prefix: An optional name prefix to give our threads. "
+"initializer: A callable used to initialize worker threads. initargs: A "
+"tuple of arguments to pass to the initializer. ctxkwargs: Additional "
+"arguments to cls.prepare_context()."
+msgstr ""
 
 #: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:1 of
 msgid "Clean-up the resources associated with the Executor."
@@ -587,7 +730,7 @@ msgid ""
 " can be called after this one."
 msgstr ""
 
-#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:8 of
+#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:7 of
 msgid "wait: If True then shutdown will not return until all running"
 msgstr ""
 
@@ -597,7 +740,7 @@ msgid ""
 "have been reclaimed."
 msgstr ""
 
-#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:11 of
+#: aiomisc.thread_pool.ThreadPoolExecutor.shutdown:10 of
 msgid "cancel_futures: If True then shutdown will cancel all pending"
 msgstr ""
 
@@ -605,19 +748,11 @@ msgstr ""
 msgid "futures. Futures that are completed or running will not be cancelled."
 msgstr ""
 
-#: aiomisc.thread_pool.WorkItem:1 aiomisc.thread_pool.WorkItemBase:1 of
-msgid "Create new instance of WorkItemBase(func, args, kwargs, future, loop)"
-msgstr ""
-
-#: ../../docstring aiomisc.thread_pool.WorkItemBase.loop:1 of
-msgid "Alias for field number 4"
-msgstr ""
-
-#: ../../source/api/aiomisc.rst:131
+#: ../../source/api/aiomisc.rst:149
 msgid "``aiomisc.timeout`` module"
 msgstr "Модуль ``aiomisc.timeout``"
 
-#: ../../source/api/aiomisc.rst:138
+#: ../../source/api/aiomisc.rst:157
 msgid "``aiomisc.utils`` module"
 msgstr "Модуль ``aiomisc.utils``"
 
@@ -712,22 +847,6 @@ msgstr ""
 msgid "Split list or generator by chunks with fixed maximum size."
 msgstr ""
 
-#: aiomisc.utils.create_default_event_loop:1 of
-msgid "Creates an event loop and thread pool executor"
-msgstr ""
-
-#: aiomisc.utils.create_default_event_loop:3 of
-msgid "thread pool maximal size"
-msgstr ""
-
-#: aiomisc.utils.create_default_event_loop:4 of
-msgid "event loop policy"
-msgstr ""
-
-#: aiomisc.utils.create_default_event_loop:5 of
-msgid "set ``loop.set_debug(True)`` if True"
-msgstr ""
-
 #: aiomisc.utils.fast_uuid1:1 of
 msgid "Fast UUID1 like identifier"
 msgstr ""
@@ -740,7 +859,7 @@ msgstr ""
 msgid "Simple and useful decorator for wrap the coroutine to `asyncio.shield`."
 msgstr ""
 
-#: ../../source/api/aiomisc.rst:145
+#: ../../source/api/aiomisc.rst:165
 msgid "``aiomisc.worker_pool`` module"
 msgstr "Модуль ``aiomisc.worker_pool``"
 
@@ -787,3 +906,433 @@ msgstr "Модуль ``aiomisc.worker_pool``"
 #~ "result before use it in ``await`` "
 #~ "expression."
 #~ msgstr ""
+
+#~ msgid ""
+#~ "There is no runtime checking of "
+#~ "these properties. The decorator sets the"
+#~ " ``__final__`` attribute to ``True`` on "
+#~ "the decorated object to allow runtime"
+#~ " introspection."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "object should provide SimpleQueue, Queue "
+#~ "and Process. Useful to allow specific"
+#~ " multiprocessing start methods."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "initializer: A callable used to "
+#~ "initialize worker processes. initargs: A "
+#~ "tuple of arguments to pass to the"
+#~ " initializer. max_tasks_per_child: The maximum"
+#~ " number of tasks a worker process"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "can complete before it will exit "
+#~ "and be replaced with a fresh "
+#~ "worker process. The default of None "
+#~ "means worker process will live as "
+#~ "long as the executor. Requires a "
+#~ "non-'fork' mp_context start method. When "
+#~ "given, we default to using 'spawn' "
+#~ "if no mp_context is supplied."
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.aggregate.Aggregator`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.NamedTuple`"
+#~ msgstr ""
+
+#~ msgid "Create new instance of Arg(value, future)"
+#~ msgstr ""
+
+#~ msgid "Alias for field number 1"
+#~ msgstr ""
+
+#~ msgid "Alias for field number 0"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing._Final`, "
+#~ ":py:class:`~typing._Immutable`, :py:class:`~typing._TypeVarLike`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Parameter specification variables defined with"
+#~ " covariant=True or contravariant=True can "
+#~ "be used to declare covariant or "
+#~ "contravariant generic types.  These keyword"
+#~ " arguments are valid, but their "
+#~ "actual semantics are yet to be "
+#~ "decided.  See PEP 612 for details."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "P.__name__ == 'P' P.__bound__ == None"
+#~ " P.__covariant__ == False P.__contravariant__ "
+#~ "== False"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Such classes are primarily used with "
+#~ "static type checkers that recognize "
+#~ "structural subtyping (static duck-typing), "
+#~ "for example::"
+#~ msgstr ""
+
+#~ msgid "class Base:"
+#~ msgstr ""
+
+#~ msgid "@final def done(self) -> None:"
+#~ msgstr ""
+
+#~ msgid "..."
+#~ msgstr ""
+
+#~ msgid "class Sub(Base):"
+#~ msgstr ""
+
+#~ msgid "def done(self) -> None:  # Error reported by type checker"
+#~ msgstr ""
+
+#~ msgid "@final class Leaf:"
+#~ msgstr ""
+
+#~ msgid "class Other(Leaf):  # Error reported by type checker"
+#~ msgstr ""
+
+#~ msgid "There is no runtime checking of these properties."
+#~ msgstr ""
+
+#~ msgid "Create new instance of StatisticResult(kind, name, metric, value)"
+#~ msgstr ""
+
+#~ msgid "Alias for field number 2"
+#~ msgstr ""
+
+#~ msgid "Alias for field number 3"
+#~ msgstr ""
+
+#~ msgid "object should provide SimpleQueue, Queue and Process."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "initializer: A callable used to "
+#~ "initialize worker processes. initargs: A "
+#~ "tuple of arguments to pass to the"
+#~ " initializer."
+#~ msgstr ""
+
+#~ msgid "Create new instance of WorkItemBase(func, args, kwargs, future, loop)"
+#~ msgstr ""
+
+#~ msgid "Alias for field number 4"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing._Final`, "
+#~ ":py:class:`~typing._Immutable`, "
+#~ ":py:class:`~typing._BoundVarianceMixin`, "
+#~ ":py:class:`~typing._PickleUsingNameMixin`"
+#~ msgstr ""
+
+#~ msgid "Usage::"
+#~ msgstr ""
+
+#~ msgid "P = ParamSpec('P')"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Parameter specification variables exist "
+#~ "primarily for the benefit of static "
+#~ "type checkers.  They are used to "
+#~ "forward the parameter types of one "
+#~ "callable to another callable, a pattern"
+#~ " commonly found in higher order "
+#~ "functions and decorators.  They are only"
+#~ " valid when used in ``Concatenate``, "
+#~ "or as the first argument to "
+#~ "``Callable``, or as parameters for "
+#~ "user-defined Generics.  See class Generic"
+#~ " for more information on generic "
+#~ "types.  An example for annotating a "
+#~ "decorator::"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "T = TypeVar('T')\n"
+#~ "P = ParamSpec('P')\n"
+#~ "\n"
+#~ "def add_logging(f: Callable[P, T]) -> Callable[P, T]:\n"
+#~ "    '''A type-safe decorator to add logging to a function.'''\n"
+#~ "    def inner(*args: P.args, **kwargs: P.kwargs) -> T:\n"
+#~ "        logging.info(f'{f.__name__} was called')\n"
+#~ "        return f(*args, **kwargs)\n"
+#~ "    return inner\n"
+#~ "\n"
+#~ "@add_logging\n"
+#~ "def add_two(x: float, y: float) -> float:\n"
+#~ "    '''Add two numbers together.'''\n"
+#~ "    return x + y"
+#~ msgstr ""
+
+#~ msgid "Parameter specification variables can be introspected. e.g.:"
+#~ msgstr ""
+
+#~ msgid "P.__name__ == 'P'"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Note that only parameter specification "
+#~ "variables defined in global scope can"
+#~ " be pickled."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "class GenProto(Protocol[T]):\n"
+#~ "    def meth(self) -> T:\n"
+#~ "        ..."
+#~ msgstr ""
+
+#~ msgid "mp_context: A multiprocessing context to launch the workers. This"
+#~ msgstr ""
+
+#~ msgid "Initializes a new ProcessPoolExecutor instance."
+#~ msgstr ""
+
+#~ msgid "max_workers: The maximum number of processes that can be used to"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "execute the given calls. If None "
+#~ "or not given then as many worker"
+#~ " processes will be created as the "
+#~ "machine has processors."
+#~ msgstr ""
+
+#~ msgid "mp_context: A multiprocessing context to launch the workers created"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "using the multiprocessing.get_context('start "
+#~ "method') API. This object should provide"
+#~ " SimpleQueue, Queue and Process."
+#~ msgstr ""
+
+#~ msgid "number of workers in the pool"
+#~ msgstr ""
+
+#~ msgid "additional arguments for ProcessPoolExecutor"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "from time import sleep\n"
+#~ "from aiomisc import ProcessPoolExecutor\n"
+#~ "\n"
+#~ "def blocking_fn():\n"
+#~ "    sleep(1)\n"
+#~ "\n"
+#~ "async def main():\n"
+#~ "    executor = ProcessPoolExecutor()\n"
+#~ "    future = executor.submit(blocking_fn)\n"
+#~ "    await future\n"
+#~ "    print(executor._statistic)\n"
+#~ "\n"
+#~ "asyncio.run(main())"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.AsyncIterator`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.AsyncIterator`, "
+#~ ":py:class:`~aiomisc.compat.EventLoopMixin`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Protocol`, "
+#~ ":py:class:`~typing.Generic`\\ [:py:obj:`~aiomisc.aggregate.V`,"
+#~ " :py:obj:`~aiomisc.aggregate.R`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Protocol`, "
+#~ ":py:class:`~typing.Generic`\\ [:py:obj:`~aiomisc.aggregate.S`,"
+#~ " :py:obj:`~aiomisc.aggregate.T`]"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.counters.Statistic`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~aiomisc.aggregate.AggregatorAsync`\\ "
+#~ "[:py:obj:`~aiomisc.aggregate.V`, "
+#~ ":py:obj:`~aiomisc.aggregate.R`], :py:class:`~typing.Generic`\\"
+#~ " [:py:obj:`~aiomisc.aggregate.V`, "
+#~ ":py:obj:`~aiomisc.aggregate.R`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~aiomisc.compat.EventLoopMixin`, "
+#~ ":py:class:`~typing.Generic`\\ [:py:obj:`~aiomisc.aggregate.V`,"
+#~ " :py:obj:`~aiomisc.aggregate.R`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Generic`\\ "
+#~ "[:py:obj:`~aiomisc.aggregate.V`, :py:obj:`~aiomisc.aggregate.R`]"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`Exception`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.backoff.BackoffStatistic`"
+#~ msgstr ""
+
+#~ msgid "retrying when this exceptions was raised."
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.compat.EventLoopMixin`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~enum.IntEnum`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.Protocol`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`object`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.Generic`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`type`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.counters.AbstractStatistic`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.io.AsyncFileIO`\\ [:py:class:`bytes`]"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.io.AsyncBinaryIO`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.io.AsyncTextIO`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~aiomisc.compat.EventLoopMixin`, "
+#~ ":py:class:`~typing.Generic`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.io.AsyncFileIO`\\ [:py:class:`str`]"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~enum.Enum`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`RuntimeError`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.iterator_wrapper.QueueWrapperBase`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Generic`\\ "
+#~ "[:py:obj:`~aiomisc.iterator_wrapper.T`], "
+#~ ":py:class:`~typing.AsyncIterator`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Generic`\\ "
+#~ "[:py:obj:`~aiomisc.iterator_wrapper.P`, "
+#~ ":py:obj:`~aiomisc.iterator_wrapper.T`], "
+#~ ":py:class:`~typing.AsyncIterator`, "
+#~ ":py:class:`~aiomisc.compat.EventLoopMixin`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~logging.Handler`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.AsyncContextManager`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~abc.ABC`, "
+#~ ":py:class:`~aiomisc.compat.EventLoopMixin`, "
+#~ ":py:class:`~typing.Generic`\\ [:py:obj:`~aiomisc.pool.T`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: "
+#~ ":py:class:`~concurrent.futures.process.ProcessPoolExecutor`, "
+#~ ":py:class:`~aiomisc.compat.EventLoopMixin`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.recurring.StrategyException`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.iterator_wrapper.IteratorWrapper`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~_queue.SimpleQueue`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~concurrent.futures.thread.ThreadPoolExecutor`"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "thread_name_prefix: An optional name prefix"
+#~ " to give our threads. initializer: A"
+#~ " callable used to initialize worker "
+#~ "threads. initargs: A tuple of arguments"
+#~ " to pass to the initializer."
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~typing.Generic`\\ "
+#~ "[:py:obj:`~aiomisc.thread_pool.P`, "
+#~ ":py:obj:`~aiomisc.thread_pool.T`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~aiomisc.thread_pool.ThreadedIterable`\\ "
+#~ "[:py:obj:`~aiomisc.thread_pool.P`, "
+#~ ":py:obj:`~aiomisc.thread_pool.T`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Bases: :py:class:`~aiomisc.thread_pool.Threaded`\\ "
+#~ "[:py:obj:`~aiomisc.thread_pool.P`, "
+#~ ":py:obj:`~aiomisc.thread_pool.T`]"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "A decorator to run a function in"
+#~ " a separate thread. It returns an "
+#~ "`asyncio.Future` that can be awaited."
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~aiomisc.thread_pool.WorkItemBase`"
+#~ msgstr ""
+
+#~ msgid "Bases: :py:class:`~typing.Collection`"
+#~ msgstr ""
+
+#~ msgid "Creates an event loop and thread pool executor"
+#~ msgstr ""
+
+#~ msgid "thread pool maximal size"
+#~ msgstr ""
+
+#~ msgid "event loop policy"
+#~ msgstr ""
+
+#~ msgid "set ``loop.set_debug(True)`` if True"
+#~ msgstr ""
+

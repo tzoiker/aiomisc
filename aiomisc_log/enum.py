@@ -2,25 +2,26 @@ import logging
 import os
 import sys
 from enum import Enum, IntEnum, unique
-from typing import Tuple
-
 
 try:
     from logging_journald import check_journal_stream  # type: ignore
 except ImportError:
+
     def check_journal_stream() -> bool:
         return False
 
-try:
-    import rich
 
-    RICH_INSTALLED = bool(rich)
+try:
+    import rich as _  # noqa
+
+    RICH_INSTALLED = True
 except ImportError:
     RICH_INSTALLED = False
 
 
 @unique
 class LogFormat(IntEnum):
+    disabled = -1
     stream = 0
     color = 1
     json = 2
@@ -31,7 +32,7 @@ class LogFormat(IntEnum):
     rich_tb = 7
 
     @classmethod
-    def choices(cls) -> Tuple[str, ...]:
+    def choices(cls) -> tuple[str, ...]:
         return tuple(cls._member_names_)
 
     @classmethod
@@ -57,7 +58,7 @@ class LogLevel(IntEnum):
     notset = logging.NOTSET
 
     @classmethod
-    def choices(cls) -> Tuple[str, ...]:
+    def choices(cls) -> tuple[str, ...]:
         return tuple(cls._member_names_)
 
     @classmethod
